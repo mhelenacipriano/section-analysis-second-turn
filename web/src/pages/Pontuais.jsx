@@ -39,7 +39,7 @@ export default function Pontuais({ data, go, themeKey }) {
       <p className="sub">Contamos as seções que <strong>não</strong> ficaram abertas até mais tarde: a urna confirmou o encerramento antes das 17h30 (Brasília), o horário normal. Nenhuma seção fechou antes das 17h. E quem venceu cada estado no 1º turno.</p>
 
       <div className="stats">
-        <Stat k="Seções que fecharam no horário (antes das 17h30)" v={fmtPct(all.n ? all.on / all.n : 0, 2)} sub={`${fmtN(all.on)} de ${fmtN(all.n)} (${rows.length} estados)`} />
+        <Stat k="Seções que fecharam no horário (antes das 17h30)" v={fmtPct(all.n ? all.on / all.n : 0, 2)} sub={`todas as seções dos ${rows.length} estados com dados, juntas`} />
         {best && <Stat k="Maior percentual" v={`${best.uf} ${fmtPct(best.pct, 2)}`} sub={`venceu: ${WINNER[best.winner]}`} />}
         {worst && <Stat k="Menor percentual" v={`${worst.uf} ${fmtPct(worst.pct, 2)}`} sub={`venceu: ${WINNER[worst.winner]}`} />}
         <Stat k="Estados vencidos no 1º turno" v={`Lula ${wins.lula} · Flávio ${wins.flavio}`} sub="entre os estados com dados" />
@@ -77,12 +77,11 @@ export default function Pontuais({ data, go, themeKey }) {
               <span className="rb-track" role="img" aria-label={`${r.uf}: ${fmtPct(r.pct, 2)} das seções no horário; venceu ${WINNER[r.winner]}`}>
                 <span className={`rb-fill ${r.winner}`} style={{ width: `${r.pct * 100}%` }}><b>{fmtPct(r.pct, 2)}</b> · {CAT_LABEL[r.winner] || WINNER[r.winner]}</span>
               </span>
-              <span className="rb-n">{fmtN(r.on.n)} / {fmtN(r.n)}</span>
             </li>
           ))}
         </ol>
         <Legend />
-        <Note>As barras começam em 0%: a diferença entre os estados é pequena (quase todas as seções fecham no horário), por isso os percentuais têm duas casas decimais.</Note>
+        <Note>Ranking só por porcentagem (parcela das seções de cada estado que fechou no horário), não por número de seções. As barras começam em 0%: a diferença entre os estados é pequena, por isso os percentuais têm duas casas decimais.</Note>
       </section>
 
       <section className="story" aria-labelledby="tb">
