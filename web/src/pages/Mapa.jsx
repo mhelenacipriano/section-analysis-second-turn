@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useState } from 'react';
-import MapView from '../components/MapView.jsx';
+import MapView, { ramp } from '../components/MapView.jsx';
 import { Filters } from '../components/Filters.jsx';
 import { Legend, Note, StackBar, Stat } from '../components/ui.jsx';
 import { loadGeo } from '../data.js';
 import { useLang } from '../i18n.jsx';
 import { fmtHM, fmtN, fmtPct } from '../format.js';
 import { byUnit, groups } from '../stats.js';
+
+// Six shade classes by quantile (about the same number of places per class), so a few very large values
+// (RJ, SP) do not wash out everyone else. Zero stays neutral; the lightest class is already clearly tinted.
+const CLASSES = 6;
+const T_MIN = 0.28;
+function classify(values) {
+  const v = values.filter((x) => x > 0).sort((a, b) => a - b);
+  if (!v.length) return { breaks: [], n: 0 };
+  const raw = [];
+  for (let j = 1; j < CLASSES; j++) raw.push(v[Math.min(v.length - 1, Math.floor((j * v.length) / CLASSES))]);
+  const breaks = [...new Set(raw)].filter((b) => b < v[v.length - 1]);
+  return { breaks, n: breaks.length + 1, max: v[v.length - 1] };
+}
+const classOf = (sc, x) => sc.breaks.filter((b) => x > b).length;
+const tOf = (sc, i) => (sc.n <= 1 ? 1 : T_MIN + (1 - T_MIN) * (i / (sc.n - 1)));
 
 const MIN_SECTIONS = 30;   // municipality ranking: ignore places too small for a percentage to mean anything
 const share = (u, k) => (u.n ? u[k] / u.n : null);
@@ -46,12 +61,22 @@ export default function Mapa({ data, f, setF, themeKey }) {
     const u = unitOf(feat);
     return u && u.n ? M.get(u) : null;
   };
-  const max = useMemo(() => {
-    if (M.fixedMax) return M.fixedMax;
-    let m = 0;
-    for (const u of units.values()) if (level === 'uf' || u.uf === f.uf) m = Math.max(m, M.get(u) || 0);
-    return m || 1;
+  const scale = useMemo(() => {
+    const vals = [];
+    for (const u of units.values()) if (u.n && (level === 'uf' || u.uf === f.uf)) { const x = M.get(u); if (x != null) vals.push(x); }
+    return { ...classify(vals), hasZero: vals.some((x) => x <= 0) };
   }, [units, M, level, f.uf]);
+  const colorOf = (feat, c) => {
+    const v = valueOf(feat);
+    if (v == null) return c.none;
+    if (v <= 0 || !scale.n) return c.lo;
+    return ramp(tOf(scale, classOf(scale, v)), c.lo, c.hi);
+  };
+  const fl = (x) => (x < 0.001 ? fmtPct(x, 3) : M.fmt(x));   // tiny shares need a third decimal to tell the classes apart
+  const classLabels = scale.n ? Array.from({ length: scale.n }, (_, i) => {
+    const lo = i === 0 ? null : scale.breaks[i - 1], hi = i === scale.n - 1 ? null : scale.breaks[i];
+    return { t: tOf(scale, i), text: lo == null ? `≤ ${fl(hi ?? scale.max)}` : hi == null ? `> ${fl(lo)}` : `${fl(lo)} – ${fl(hi)}` };
+  }) : [];
 
   const keyOf = (feat) => (level === 'uf' ? feat.properties.uf : feat.properties.id);
   const labelOf = (feat) => {
@@ -86,9 +111,12 @@ export default function Mapa({ data, f, setF, themeKey }) {
         <div className="mapa-caixa">
           {err && <p className="empty">{L('Não foi possível carregar o mapa', 'Could not load the map')} ({String(err.message || err)}).</p>}
           {!geo && !err && <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
-          {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} max={max} hue={M.hue} selected={selected}
+          {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} colorOf={colorOf} max={1} hue={M.hue} selected={selected}
             onPick={onPick} themeKey={themeKey} version={`${level}|${f.uf}|${metric}|${f.lim}|${lang}`} />}
-          <div className="escala" aria-hidden="true"><span>{M.fmt(0)}</span><i className={`grad ${M.hue}`} /><span>{M.fmt(max)}</span></div>
+          <div className="classes" aria-label={L('Legenda das cores', 'Colour legend')}>
+            {scale.hasZero && <span><i style={{ background: 'var(--panel2)' }} />0</span>}
+            {classLabels.map((c, i) => <span key={i}><i style={{ background: `color-mix(in srgb, var(--${M.hue}) ${Math.round(c.t * 100)}%, var(--panel2))` }} />{c.text}</span>)}
+          </div>
           {f.uf && <button type="button" className="btn" onClick={() => setF({ uf: '', mun: '' })}>← {L('Brasil', 'Brazil')}</button>}
           {noPolygon > 0 && <Note>{L(`${noPolygon} município(s) de ${f.uf} criado(s) recentemente não têm contorno no mapa; aparecem nas tabelas.`, `${noPolygon} recently created municipality(ies) of ${f.uf} have no outline on the map; they appear in the tables.`)}</Note>}
         </div>

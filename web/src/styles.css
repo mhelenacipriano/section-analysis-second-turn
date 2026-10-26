@@ -203,3 +203,7 @@ a.btn { text-decoration: none; }
 .detalhes-estado { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); }
 .detalhes-estado summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
 .detalhes-estado[open] summary { margin-bottom: 10px; }
+
+.classes { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--fg2); }
+.classes span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.classes i { display: inline-block; width: 1.5rem; height: .9rem; border-radius: 3px; border: 1px solid var(--line); }
