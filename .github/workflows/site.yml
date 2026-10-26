@@ -26,40 +26,60 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      ok: ${{ steps.chk.outputs.ok }}
     steps:
       - uses: actions/checkout@v4
         with:
           ref: main
 
+      # nothing to publish until the closing-time scan has committed its first results
+      - name: Check that the scan has produced data
+        id: chk
+        run: |
+          if ls state_enc/done_*.txt > /dev/null 2>&1; then
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::state_enc/ is empty (run tse-encerramento first); nothing to publish"
+          fi
+
       - uses: actions/setup-python@v5
+        if: steps.chk.outputs.ok == 'true'
         with:
           python-version: "3.12"
 
       - name: Build the data files
+        if: steps.chk.outputs.ok == 'true'
         run: |
           pip install pandas
           python scripts/build_site_data.py
 
       - uses: actions/setup-node@v4
+        if: steps.chk.outputs.ok == 'true'
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
 
       - name: Build the site
+        if: steps.chk.outputs.ok == 'true'
         working-directory: web
         run: |
           npm ci
           npm run build
 
       - uses: actions/configure-pages@v5
+        if: steps.chk.outputs.ok == 'true'
 
       - uses: actions/upload-pages-artifact@v3
+        if: steps.chk.outputs.ok == 'true'
         with:
           path: web/dist
 
   deploy:
     needs: build
+    if: needs.build.outputs.ok == 'true'
     runs-on: ubuntu-latest
     environment:
       name: github-pages
