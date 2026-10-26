@@ -14,6 +14,7 @@ Needs votos_apos_17h.py in the same folder (it reuses its log parser).
     python baixar_logs_resultados.py --uf PB
 
 Options: --hora 17:00  --data 25/10/2026  --pleito <code>  --workers 6
+         --encerramento   second kind of scan: when did each urna CLOSE voting (see below)
          --no-keep-logs   parse each log in memory, never write it to disk
          --max-minutes N  stop taking new sections after N minutes (exit 0)
 
@@ -26,6 +27,11 @@ A rerun skips everything already in state/done_<UF>.txt. The files are flushed e
 500 sections, on --max-minutes, on SIGINT/SIGTERM, and when the server rate-limits
 (more than 50% of the requests in the last 200 sections were HTTP 429): in all these
 cases the script saves its state and exits 0.
+--encerramento reads the closing sequence of each urna log (the last "Procedimento de
+encerramento confirmado" of the day) instead of the late votes. Every section's confirmed closing
+time (urna clock, HHMMSS, or "-" if the log has none) is added to its line in
+state_enc/done_<UF>.txt; sections that closed at/after --hora-registro (default 17:30 Brasília) or
+have no closing record also get a full row in results_enc/encerramentos_<UF>.csv.
 Without --no-keep-logs the logs are also cached in ./logs_urna/<UF>/.
 
 Paths follow the layout the portal used in 2022/2024:
@@ -211,7 +217,7 @@ HASH_KEYS = ("hash", "hs", "hashArquivos", "hash_arquivos", "cdHash")
 _debug_saved = set()
 
 
-def check_section(ciclo, pleito, uf, s, cache_dir, cache_index, cutoff):
+def check_section(ciclo, pleito, uf, s, cache_dir, cache_index, cutoff, closure=False):
     """Returns (result, error, transient, (requests, 429s)).
 
     transient errors (rate limiting, network trouble) say nothing about the
@@ -222,8 +228,8 @@ def check_section(ciclo, pleito, uf, s, cache_dir, cache_index, cutoff):
     try:
         name, blob, err = fetch_log(ciclo, pleito, uf, s, cache_dir, cache_index)
         if not err:
-            _, total, late, first_late, last_vote = analyse(blob, name, cutoff)
-            res = (total, late, first_late, last_vote)
+            r = analyse(blob, name, cutoff, closure=closure)
+            res = (r[1], r[2], r[3], r[4]) + ((r[5],) if closure else ())
     except (Throttled, requests.RequestException) as e:
         err, transient = str(e), True
     except Exception as e:
@@ -275,6 +281,8 @@ def save_debug(uf, aux, url):
 
 RESULT_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "hora_corte_local",
                  "votos_no_dia", "votos_apos_corte", "primeiro_voto_apos_corte", "ultimo_voto"]
+ENC_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "votos_no_dia", "votos_apos_corte",
+              "ultimo_voto", "encerrar_selecionado", "encerramento_confirmado", "inicio_encerramento"]
 PROBLEM_FIELDS = ["municipio", "zona", "secao", "problema", "tentativas", "indice"]
 FLUSH_EVERY = 500       # sections
 RATE_WINDOW = 200       # sections looked at by the 429 check
@@ -288,12 +296,13 @@ def key_of(s):
 class Progress:
     """The durable state of one UF: what was checked, what was found, what failed."""
 
-    def __init__(self, uf, state_dir, results_dir):
+    def __init__(self, uf, state_dir, results_dir, rows_name="secoes_apos_17h", fields=None):
         os.makedirs(state_dir, exist_ok=True)
         os.makedirs(results_dir, exist_ok=True)
         self.done_path = os.path.join(state_dir, f"done_{uf}.txt")
         self.complete_path = os.path.join(state_dir, f"complete_{uf}")
-        self.rows_path = os.path.join(results_dir, f"secoes_apos_17h_{uf}.csv")
+        self.rows_path = os.path.join(results_dir, f"{rows_name}_{uf}.csv")
+        self.fields = fields or RESULT_FIELDS
         self.problems_path = os.path.join(results_dir, f"problemas_{uf}.csv")
 
         self.done, self.new_done = set(), []
@@ -302,7 +311,9 @@ class Progress:
             with open(self.done_path, "rb") as f:
                 data = f.read()
             self.lead_newline = bool(data) and not data.endswith(b"\n")  # killed mid-line
-            self.done = {ln.strip() for ln in data.decode("utf-8").splitlines() if ln.strip()}
+            # a line is "municipio,zona,secao" plus, for --encerramento, ",<closing time>"
+            self.done = {",".join(ln.strip().split(",")[:3]) for ln in data.decode("utf-8").splitlines()
+                         if ln.strip()}
 
         self.row_keys, self.new_rows = set(), []
         if os.path.exists(self.rows_path):
@@ -320,10 +331,10 @@ class Progress:
     def attempts(self, key):
         return self.problems.get(key, {}).get("tentativas", 0)
 
-    def add_done(self, key):
+    def add_done(self, key, extra=None):
         if key not in self.done:
             self.done.add(key)
-            self.new_done.append(key)
+            self.new_done.append(f"{key},{extra}" if extra else key)
 
     def add_row(self, row):
         key = f"{row['municipio']},{row['zona']},{row['secao']}"
@@ -347,7 +358,7 @@ class Progress:
         if self.new_rows:
             fresh = not os.path.exists(self.rows_path) or os.path.getsize(self.rows_path) == 0
             with open(self.rows_path, "a", newline="", encoding="utf-8") as f:
-                w = csv.DictWriter(f, fieldnames=RESULT_FIELDS)
+                w = csv.DictWriter(f, fieldnames=self.fields)
                 if fresh:
                     w.writeheader()
                 w.writerows(self.new_rows)
@@ -394,9 +405,15 @@ def main():
     ap.add_argument("--max-tentativas", type=int, default=3, metavar="N",
                     help="give up on a section after N failed runs (0 = never); transient "
                          "failures (429, network) do not count")
-    ap.add_argument("--state-dir", default="state")
-    ap.add_argument("--results-dir", default="results")
+    ap.add_argument("--encerramento", action="store_true",
+                    help="scan the closing sequence of each urna instead of the late votes")
+    ap.add_argument("--hora-registro", default="17:30", metavar="HH:MM",
+                    help="--encerramento: sections closing at/after this Brasília time get a row")
+    ap.add_argument("--state-dir")
+    ap.add_argument("--results-dir")
     args = ap.parse_args()
+    args.state_dir = args.state_dir or ("state_enc" if args.encerramento else "state")
+    args.results_dir = args.results_dir or ("results_enc" if args.encerramento else "results")
     uf = args.uf.upper()
     started = time.monotonic()
     deadline = started + args.max_minutes * 60 if args.max_minutes else None
@@ -423,7 +440,14 @@ def main():
     print(f"cutoff: {args.hora} {'local' if args.hora_local else 'Brasília'} "
           f"= {cutoff:%H:%M} on {uf} urna clocks")
 
-    progress = Progress(uf, args.state_dir, args.results_dir)
+    record_cut = None
+    if args.encerramento:
+        reg = datetime.strptime(f"{args.data} {args.hora_registro}", "%d/%m/%Y %H:%M")
+        record_cut = reg if args.hora_local else local_cutoff(reg, uf)
+        print(f"closing times: rows for sections closed at/after {record_cut:%H:%M} on {uf} urna clocks")
+    progress = Progress(uf, args.state_dir, args.results_dir,
+                        "encerramentos" if args.encerramento else "secoes_apos_17h",
+                        ENC_FIELDS if args.encerramento else RESULT_FIELDS)
     merged = [s for s in sections if s["agregada_a"]]
     sections = [s for s in sections if not s["agregada_a"]]
     if merged:
@@ -478,7 +502,7 @@ def main():
             if s is None:
                 break
             inflight[pool.submit(check_section, ciclo, pleito, uf, s,
-                                 cache_dir, cache_index, cutoff)] = s
+                                 cache_dir, cache_index, cutoff, args.encerramento)] = s
         if not inflight or stop["hard"]:
             break
         finished, _ = wait(inflight, timeout=1, return_when=FIRST_COMPLETED)
@@ -494,9 +518,25 @@ def main():
                 failed_now.append(key)
                 progress.set_problem(s, err, progress.attempts(key) + (0 if transient else 1))
             else:
-                total, late, first_late, last_vote = res
-                progress.add_done(key)
+                total, late, first_late, last_vote = res[:4]
                 progress.clear_problem(key)
+                if args.encerramento:
+                    conf = res[4]["conf"]
+                    progress.add_done(key, conf.strftime("%H%M%S") if conf else "-")
+                    if conf is None or conf >= record_cut:
+                        found += 1
+                        hms = lambda d: d.strftime("%H:%M:%S") if d else ""
+                        progress.add_row({
+                            "uf": uf, "municipio": s["mun"], "nome_municipio": s["nome"],
+                            "zona": s["zona"], "secao": s["secao"], "votos_no_dia": total,
+                            "votos_apos_corte": late, "ultimo_voto": hms(last_vote),
+                            "encerrar_selecionado": hms(res[4]["sel"]),
+                            "encerramento_confirmado": hms(conf),
+                            "inicio_encerramento": hms(res[4]["ini"]),
+                        })
+                    late = 0   # rows were handled above
+                else:
+                    progress.add_done(key)
                 if late:
                     found += 1
                     progress.add_row({
@@ -535,8 +575,11 @@ def main():
     progress.flush()
 
     remaining = [s for s in todo if key_of(s) not in progress.done]
-    print(f"\nThis run: {processed} sections checked, {found} with votes at or after "
-          f"{cutoff:%H:%M} local ({args.hora} {'local' if args.hora_local else 'Brasília'}), "
+    what = (f"closed at or after {record_cut:%H:%M} local (or without closing record)"
+            if args.encerramento else
+            f"with votes at or after {cutoff:%H:%M} local "
+            f"({args.hora} {'local' if args.hora_local else 'Brasília'})")
+    print(f"\nThis run: {processed} sections checked, {found} {what}, "
           f"{problems_now} failed. Total done in {uf}: "
           f"{sum(key_of(s) in progress.done for s in sections)}/{len(sections)}.")
     if stop["reason"]:

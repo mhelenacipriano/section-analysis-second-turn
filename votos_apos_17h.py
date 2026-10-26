@@ -117,7 +117,17 @@ def read_log_lines(blob):
         yield from data.decode("latin-1", errors="replace").splitlines()
 
 
-def analyse(blob, filename, cutoff):
+# Closing sequence of the urna on election day (same wording in every log checked):
+#   Operador selecionou: Encerrar votação  ->  Procedimento de encerramento confirmado
+#   ->  ...registro de mesários...  ->  Inicio do Encerramento
+CLOSE_KINDS = (("sel", "operador selecionou: encerrar vota"),
+               ("conf", "procedimento de encerramento confirmado"),
+               ("ini", "inicio do encerramento"))
+
+
+def analyse(blob, filename, cutoff, closure=False):
+    """Returns (ids, total, late, first_late, last_vote); with closure=True also a 6th item:
+    {"sel"|"conf"|"ini": datetime of the LAST such event on the day, or None}."""
     ids = {}
     m = NAME_RE.search(filename)
     if m:
@@ -131,6 +141,11 @@ def analyse(blob, filename, cutoff):
         r"O voto do eleitor foi computado\t?([^\t\n]*)",
         re.M | re.I,
     )
+    close_re = re.compile(
+        r"^" + re.escape(day) + r" (\d\d):(\d\d):(\d\d)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t"
+        r"(Operador selecionou: Encerrar vota.{1,2}o|Procedimento de encerramento confirmado"
+        r"|Inicio do Encerramento)", re.M | re.I) if closure else None
+    closed = {k: None for k, _ in CLOSE_KINDS}   # seconds since midnight
     cut = cutoff.hour * 3600 + cutoff.minute * 60 + cutoff.second
     total = late = 0
     first_late = last_vote = None  # seconds since midnight
@@ -142,6 +157,12 @@ def analyse(blob, filename, cutoff):
                     hit = rx.search(text)
                     if hit:
                         ids[k] = hit.group(1)
+        if close_re:
+            for c in close_re.finditer(text):
+                kind = next(k for k, prefix in CLOSE_KINDS if c.group(4).lower().startswith(prefix))
+                t = int(c.group(1)) * 3600 + int(c.group(2)) * 60 + int(c.group(3))
+                if closed[kind] is None or t > closed[kind]:
+                    closed[kind] = t
         for v in vote_re.finditer(text):
             key = v.group(0)
             if key in seen:
@@ -160,6 +181,8 @@ def analyse(blob, filename, cutoff):
         return None if sec is None else cutoff.replace(
             hour=sec // 3600, minute=sec % 3600 // 60, second=sec % 60)
 
+    if closure:
+        return ids, total, late, as_dt(first_late), as_dt(last_vote), {k: as_dt(v) for k, v in closed.items()}
     return ids, total, late, as_dt(first_late), as_dt(last_vote)
 
 

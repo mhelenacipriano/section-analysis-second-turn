@@ -1,0 +1,132 @@
+name: tse-encerramento
+
+# Second scan: when did each urna CLOSE voting ("Procedimento de encerramento confirmado")?
+# Writes state_enc/ (every section's closing time) and results_enc/ (sections that closed late).
+# Run it by hand; if a state does not finish in one run (6 h limit, rate limiting), run it again:
+# it resumes from state_enc/done_<UF>.txt.
+
+on:
+  workflow_dispatch:
+
+# one run at a time, also across tse-logs and tse-encerramento: a new run waits instead of cancelling
+concurrency:
+  group: tse-logs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    name: ${{ matrix.uf }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # --max-minutes 300 + finishing in-flight sections; hard cap is 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2      # be gentle with the TSE server: two states at a time
+      matrix:
+        uf: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN,
+             RO, RR, RS, SC, SE, SP, TO, ZZ]
+    env:
+      UF: ${{ matrix.uf }}
+    steps:
+      # the tip of the branch, not the commit that triggered the run: a run that waited
+      # in the concurrency queue must see the progress the previous run committed
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - name: Skip if this state is already complete
+        id: gate
+        run: |
+          if [ -f "state_enc/complete_${UF}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${UF} is complete, nothing to do"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install requests py7zr
+
+      # Resumes from state_enc/done_<UF>.txt. The script writes state_enc/complete_<UF> itself
+      # once no section is left to check; it exits 0 when it stops early (time limit,
+      # rate limiting), after saving its progress.
+      - name: Download and check sections
+        if: steps.gate.outputs.skip != 'true'
+        run: >
+          python -u baixar_logs_resultados.py --uf "$UF" --pleito 3221 --workers 12
+          --no-keep-logs --max-minutes 300 --encerramento
+
+      # Matrix jobs must not push in parallel: hand this state's files to the commit job.
+      - name: Collect this state's files
+        if: always() && steps.gate.outputs.skip != 'true'
+        run: |
+          mkdir -p out
+          for f in "state_enc/done_${UF}.txt" "state_enc/complete_${UF}" \
+                   "results_enc/encerramentos_${UF}.csv" "results_enc/problemas_${UF}.csv"; do
+            if [ -f "$f" ]; then cp --parents "$f" out/; fi
+          done
+          find out -type f -exec wc -c {} +
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.gate.outputs.skip != 'true'
+        with:
+          name: enc-${{ matrix.uf }}
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  commit:
+    name: commit results
+    needs: download
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      # the tip of the branch, not the commit that triggered the run: a run that waited
+      # in the concurrency queue must see the progress the previous run committed
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true   # no artifacts at all when every state was already complete
+        with:
+          pattern: enc-*
+          path: incoming
+          merge-multiple: true
+
+      - name: Merge the states' files and rebuild the national CSV
+        run: |
+          if [ -d incoming ]; then cp -a incoming/. .; fi
+          python3 merge_resultados.py --results-dir results_enc --prefix encerramentos
+
+      - name: Commit and push
+        run: |
+          git add state_enc results_enc
+          if git diff --cached --quiet; then
+            echo "Nothing changed, nothing to commit."
+            exit 0
+          fi
+          checked=$(cat state_enc/done_*.txt | wc -l)
+          late=0
+          if [ -f results_enc/encerramentos_BR.csv ]; then
+            late=$(( $(wc -l < results_enc/encerramentos_BR.csv) - 1 ))
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "tse-encerramento: update progress (${checked} sections checked, ${late} closed late or without record)" \
+                     -m "Workflow run ${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase -X theirs   # our files are the complete, newer ones
+          done
+          exit 1
