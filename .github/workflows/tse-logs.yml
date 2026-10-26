@@ -1,0 +1,121 @@
+name: tse-logs
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 */2 * * *"   # every 2 hours, at minute 17
+
+# one run at a time: a new run waits for the current one instead of cancelling it
+concurrency:
+  group: tse-logs
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  download:
+    name: ${{ matrix.uf }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 350   # --max-minutes 300 + finishing in-flight sections; hard cap is 360
+    strategy:
+      fail-fast: false
+      max-parallel: 2      # be gentle with the TSE server: two states at a time
+      matrix:
+        uf: [AC, AL, AM, AP, BA, CE, DF, ES, GO, MA, MG, MS, MT, PA, PB, PE, PI, PR, RJ, RN,
+             RO, RR, RS, SC, SE, SP, TO, ZZ]
+    env:
+      UF: ${{ matrix.uf }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Skip if this state is already complete
+        id: gate
+        run: |
+          if [ -f "state/complete_${UF}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::${UF} is complete, nothing to do"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/setup-python@v5
+        if: steps.gate.outputs.skip != 'true'
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        if: steps.gate.outputs.skip != 'true'
+        run: pip install requests py7zr
+
+      # Resumes from state/done_<UF>.txt. The script writes state/complete_<UF> itself
+      # once no section is left to check; it exits 0 when it stops early (time limit,
+      # rate limiting), after saving its progress.
+      - name: Download and check sections
+        if: steps.gate.outputs.skip != 'true'
+        run: >
+          python -u baixar_logs_resultados.py --uf "$UF" --pleito 3221 --workers 12
+          --no-keep-logs --max-minutes 300
+
+      # Matrix jobs must not push in parallel: hand this state's files to the commit job.
+      - name: Collect this state's files
+        if: always() && steps.gate.outputs.skip != 'true'
+        run: |
+          mkdir -p out
+          for f in "state/done_${UF}.txt" "state/complete_${UF}" \
+                   "results/secoes_apos_17h_${UF}.csv" "results/problemas_${UF}.csv"; do
+            if [ -f "$f" ]; then cp --parents "$f" out/; fi
+          done
+          find out -type f -exec wc -c {} +
+
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.gate.outputs.skip != 'true'
+        with:
+          name: tse-${{ matrix.uf }}
+          path: out/
+          if-no-files-found: ignore
+          retention-days: 7
+
+  commit:
+    name: commit results
+    needs: download
+    if: always()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        continue-on-error: true   # no artifacts at all when every state was already complete
+        with:
+          pattern: tse-*
+          path: incoming
+          merge-multiple: true
+
+      - name: Merge the states' files and rebuild the national CSV
+        run: |
+          if [ -d incoming ]; then cp -a incoming/. .; fi
+          python3 merge_resultados.py
+
+      - name: Commit and push
+        run: |
+          git add state results
+          if git diff --cached --quiet; then
+            echo "Nothing changed, nothing to commit."
+            exit 0
+          fi
+          checked=$(cat state/done_*.txt | wc -l)
+          late=0
+          if [ -f results/secoes_apos_17h_BR.csv ]; then
+            late=$(( $(wc -l < results/secoes_apos_17h_BR.csv) - 1 ))
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "tse-logs: update progress (${checked} sections checked, ${late} with late votes)" \
+                     -m "Workflow run ${{ github.run_id }}"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase
+          done
+          exit 1

@@ -14,8 +14,19 @@ Needs votos_apos_17h.py in the same folder (it reuses its log parser).
     python baixar_logs_resultados.py --uf PB
 
 Options: --hora 17:00  --data 25/10/2026  --pleito <code>  --workers 6
-Logs are cached in ./logs_urna/<UF>/ so reruns skip finished sections.
-Output: secoes_apos_17h_<UF>[_<mun>].csv
+         --no-keep-logs   parse each log in memory, never write it to disk
+         --max-minutes N  stop taking new sections after N minutes (exit 0)
+
+Progress is durable and resumable (all paths relative to the working directory):
+  state/done_<UF>.txt                  "municipio,zona,secao" per section checked
+  results/secoes_apos_17h_<UF>.csv     sections with late votes (rows are appended)
+  results/problemas_<UF>.csv           sections that failed; retried on the next run
+  state/complete_<UF>                  created once nothing is left to check
+A rerun skips everything already in state/done_<UF>.txt. The files are flushed every
+500 sections, on --max-minutes, on SIGINT/SIGTERM, and when the server rate-limits
+(more than 50% of the requests in the last 200 sections were HTTP 429): in all these
+cases the script saves its state and exits 0.
+Without --no-keep-logs the logs are also cached in ./logs_urna/<UF>/.
 
 Paths follow the layout the portal used in 2022/2024:
   {BASE}/{ciclo}/arquivo-urna/{pleito}/config/{uf}/{uf}-p{pleito6}-cs.json
@@ -30,10 +41,13 @@ import json
 import os
 import random
 import re
+import signal
 import sys
+import threading
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
-from datetime import datetime
+from collections import deque
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
+from datetime import datetime, timezone
 
 import requests
 
@@ -51,18 +65,34 @@ _adapter = requests.adapters.HTTPAdapter(pool_connections=64, pool_maxsize=64)
 session.mount("https://", _adapter)
 
 
+class Throttled(Exception):
+    """Gave up after repeated 429/503 answers: the server is rate-limiting us."""
+
+
+# per-thread request counters: a section is handled start to finish by one worker
+_tl = threading.local()
+
+
+def _count(req=0, r429=0):
+    _tl.req = getattr(_tl, "req", 0) + req
+    _tl.r429 = getattr(_tl, "r429", 0) + r429
+
+
 def get(url, binary=False, tries=8):
     for i in range(tries):
         try:
+            _count(req=1)
             r = session.get(url, timeout=60)
             if r.status_code == 404:
                 return None
             if r.status_code in (429, 503):
+                if r.status_code == 429:
+                    _count(r429=1)
                 # server asked us to slow down: wait as told, or back off
                 ra = r.headers.get("Retry-After", "")
                 wait = int(ra) if ra.isdigit() else min(5 * 2 ** i, 120)
                 if i == tries - 1:
-                    r.raise_for_status()
+                    raise Throttled(f"HTTP {r.status_code} after {tries} tries: {url}")
                 time.sleep(wait + random.random() * 3)
                 continue
             r.raise_for_status()
@@ -136,7 +166,7 @@ def fetch_log(ciclo, pleito, uf, s, cache_dir, cache_index):
     aux_url = f"{folder}/p{p6}-{ufl}-m{s['mun']}-z{s['zona']}-s{s['secao']}-aux.json"
 
     # cached? (index built once at start, not a folder listing per section)
-    f = cache_index.get(f"{s['mun']}{s['zona']}{s['secao']}")
+    f = cache_index.get(f"{s['mun']}{s['zona']}{s['secao']}") if cache_dir else None
     if f:
         with open(os.path.join(cache_dir, f), "rb") as fh:
             return f, fh.read(), None
@@ -161,13 +191,16 @@ def fetch_log(ciclo, pleito, uf, s, cache_dir, cache_index):
         for url in candidates:
             try:
                 blob = get(url, binary=True)
+            except Throttled:
+                raise
             except Exception as e:
                 last_err = str(e)
                 continue
             if blob:
                 fname = os.path.basename(name)
-                with open(os.path.join(cache_dir, fname), "wb") as fh:
-                    fh.write(blob)
+                if cache_dir:  # --no-keep-logs: never touch the disk
+                    with open(os.path.join(cache_dir, fname), "wb") as fh:
+                        fh.write(blob)
                 return fname, blob, None
             last_err = f"not found: {url}"
     save_debug(uf, aux, aux_url)
@@ -179,11 +212,23 @@ _debug_saved = set()
 
 
 def check_section(ciclo, pleito, uf, s, cache_dir, cache_index, cutoff):
-    name, blob, err = fetch_log(ciclo, pleito, uf, s, cache_dir, cache_index)
-    if err:
-        return None, err
-    _, total, late, first_late, last_vote = analyse(blob, name, cutoff)
-    return (total, late, first_late, last_vote), None
+    """Returns (result, error, transient, (requests, 429s)).
+
+    transient errors (rate limiting, network trouble) say nothing about the
+    section itself, so they do not count as an attempt against it."""
+    _tl.req = _tl.r429 = 0
+    res = err = None
+    transient = False
+    try:
+        name, blob, err = fetch_log(ciclo, pleito, uf, s, cache_dir, cache_index)
+        if not err:
+            _, total, late, first_late, last_vote = analyse(blob, name, cutoff)
+            res = (total, late, first_late, last_vote)
+    except (Throttled, requests.RequestException) as e:
+        err, transient = str(e), True
+    except Exception as e:
+        err = str(e)
+    return res, err, transient, (_tl.req, _tl.r429)
 
 
 CACHE_RE = re.compile(r"(\d{13})(?:\.logjez|-log\.jez)$", re.I)
@@ -226,6 +271,109 @@ def save_debug(uf, aux, url):
         json.dump({"url": url, "content": aux}, f, ensure_ascii=False, indent=2)
 
 
+
+
+RESULT_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "hora_corte_local",
+                 "votos_no_dia", "votos_apos_corte", "primeiro_voto_apos_corte", "ultimo_voto"]
+PROBLEM_FIELDS = ["municipio", "zona", "secao", "problema", "tentativas", "indice"]
+FLUSH_EVERY = 500       # sections
+RATE_WINDOW = 200       # sections looked at by the 429 check
+RATE_LIMIT = 0.5        # stop when more than this share of their requests were 429s
+
+
+def key_of(s):
+    return f"{s['mun']},{s['zona']},{s['secao']}"
+
+
+class Progress:
+    """The durable state of one UF: what was checked, what was found, what failed."""
+
+    def __init__(self, uf, state_dir, results_dir):
+        os.makedirs(state_dir, exist_ok=True)
+        os.makedirs(results_dir, exist_ok=True)
+        self.done_path = os.path.join(state_dir, f"done_{uf}.txt")
+        self.complete_path = os.path.join(state_dir, f"complete_{uf}")
+        self.rows_path = os.path.join(results_dir, f"secoes_apos_17h_{uf}.csv")
+        self.problems_path = os.path.join(results_dir, f"problemas_{uf}.csv")
+
+        self.done, self.new_done = set(), []
+        self.lead_newline = False
+        if os.path.exists(self.done_path):
+            with open(self.done_path, "rb") as f:
+                data = f.read()
+            self.lead_newline = bool(data) and not data.endswith(b"\n")  # killed mid-line
+            self.done = {ln.strip() for ln in data.decode("utf-8").splitlines() if ln.strip()}
+
+        self.row_keys, self.new_rows = set(), []
+        if os.path.exists(self.rows_path):
+            with open(self.rows_path, newline="", encoding="utf-8") as f:
+                for r in csv.DictReader(f):
+                    self.row_keys.add(f"{r['municipio']},{r['zona']},{r['secao']}")
+
+        self.problems, self.problems_dirty = {}, False
+        if os.path.exists(self.problems_path):
+            with open(self.problems_path, newline="", encoding="utf-8") as f:
+                for r in csv.DictReader(f):
+                    r["tentativas"] = int(r.get("tentativas") or 1)
+                    self.problems[f"{r['municipio']},{r['zona']},{r['secao']}"] = r
+
+    def attempts(self, key):
+        return self.problems.get(key, {}).get("tentativas", 0)
+
+    def add_done(self, key):
+        if key not in self.done:
+            self.done.add(key)
+            self.new_done.append(key)
+
+    def add_row(self, row):
+        key = f"{row['municipio']},{row['zona']},{row['secao']}"
+        if key not in self.row_keys:  # a crash between the two appends can repeat a section
+            self.row_keys.add(key)
+            self.new_rows.append(row)
+
+    def set_problem(self, s, err, attempts):
+        self.problems[key_of(s)] = {"municipio": s["mun"], "zona": s["zona"], "secao": s["secao"],
+                                    "problema": err, "tentativas": attempts,
+                                    "indice": s.get("indice", "")}
+        self.problems_dirty = True
+
+    def clear_problem(self, key):
+        if self.problems.pop(key, None) is not None:
+            self.problems_dirty = True
+
+    def flush(self):
+        # results before done: a crash in between re-checks a section (the row is
+        # then skipped as a duplicate) instead of losing it
+        if self.new_rows:
+            fresh = not os.path.exists(self.rows_path) or os.path.getsize(self.rows_path) == 0
+            with open(self.rows_path, "a", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=RESULT_FIELDS)
+                if fresh:
+                    w.writeheader()
+                w.writerows(self.new_rows)
+            self.new_rows = []
+        if self.new_done:
+            with open(self.done_path, "a", encoding="utf-8") as f:
+                f.write(("\n" if self.lead_newline else "") + "\n".join(self.new_done) + "\n")
+            self.lead_newline, self.new_done = False, []
+        # rewritten whole (it is small); kept as a header-only file once it has existed,
+        # because a deleted file would not travel through the workflow's artifacts
+        if self.problems_dirty and (self.problems or os.path.exists(self.problems_path)):
+            tmp = self.problems_path + ".tmp"
+            with open(tmp, "w", newline="", encoding="utf-8") as f:
+                w = csv.DictWriter(f, fieldnames=PROBLEM_FIELDS)
+                w.writeheader()
+                w.writerows(self.problems[k] for k in sorted(self.problems))
+            os.replace(tmp, self.problems_path)
+        self.problems_dirty = False
+
+    def mark_complete(self):
+        if os.path.exists(self.complete_path):
+            return
+        with open(self.complete_path, "w", encoding="utf-8") as f:
+            f.write(f"{datetime.now(timezone.utc):%Y-%m-%dT%H:%M:%SZ}\n")
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--uf", required=True)
@@ -238,8 +386,20 @@ def main():
     ap.add_argument("--workers", type=int, default=16)
     ap.add_argument("--hora-local", action="store_true",
                     help="treat --hora as the urna's local clock (no time-zone conversion)")
+    ap.add_argument("--no-keep-logs", action="store_true",
+                    help="parse each log in memory and never write it to disk")
+    ap.add_argument("--max-minutes", type=float, metavar="N",
+                    help="stop taking new sections after N minutes, finish the ones in "
+                         "flight, flush the state files and exit 0")
+    ap.add_argument("--max-tentativas", type=int, default=3, metavar="N",
+                    help="give up on a section after N failed runs (0 = never); transient "
+                         "failures (429, network) do not count")
+    ap.add_argument("--state-dir", default="state")
+    ap.add_argument("--results-dir", default="results")
     args = ap.parse_args()
     uf = args.uf.upper()
+    started = time.monotonic()
+    deadline = started + args.max_minutes * 60 if args.max_minutes else None
 
     ciclo, pleito = find_pleito(args.data, args.pleito, args.ciclo)
     print(f"ciclo={ciclo} pleito={pleito}")
@@ -262,74 +422,133 @@ def main():
     cutoff = base if args.hora_local else local_cutoff(base, uf)
     print(f"cutoff: {args.hora} {'local' if args.hora_local else 'Brasília'} "
           f"= {cutoff:%H:%M} on {uf} urna clocks")
+
+    progress = Progress(uf, args.state_dir, args.results_dir)
     merged = [s for s in sections if s["agregada_a"]]
     sections = [s for s in sections if not s["agregada_a"]]
     if merged:
         print(f"{len(merged)} merged sections skipped (their votes are in the main section's urna)")
-    cache_dir = os.path.join("logs_urna", uf)
-    os.makedirs(cache_dir, exist_ok=True)
-    print(f"{len(sections)} sections to check in {uf}"
-          + (f" / {args.municipio}" if args.municipio else ""))
+        for s in merged:
+            progress.add_done(key_of(s))
 
-    cache_index = build_cache_index(cache_dir)
-    print(f"{len(cache_index)} logs already downloaded, {args.workers} parallel downloads")
-    started = time.time()
-    rows, problems, done = [], [], 0
-    with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futs = {pool.submit(check_section, ciclo, pleito, uf, s, cache_dir, cache_index, cutoff): s
-                for s in sections}
-        for fut in as_completed(futs):
-            s = futs[fut]
-            done += 1
-            try:
-                res, err = fut.result()
-                if err:
-                    problems.append((s, err))
-                else:
-                    total, late, first_late, last_vote = res
-                    if late:
-                        rows.append({
-                            "uf": uf, "municipio": s["mun"], "nome_municipio": s["nome"],
-                            "zona": s["zona"], "secao": s["secao"],
-                            "hora_corte_local": cutoff.strftime("%H:%M"),
-                            "votos_no_dia": total, "votos_apos_corte": late,
-                            "primeiro_voto_apos_corte": first_late.strftime("%H:%M:%S"),
-                            "ultimo_voto": last_vote.strftime("%H:%M:%S"),
-                        })
-            except Exception as e:
-                problems.append((s, str(e)))
-            if done % 200 == 0 or done == len(sections):
-                el = time.time() - started
-                eta = el / done * (len(sections) - done)
-                print(f"  {done}/{len(sections)} checked, {len(rows)} with late votes, "
-                      f"{len(problems)} problems  [{done / el:.1f}/s, ~{eta / 60:.0f} min left]")
+    pending = [s for s in sections if key_of(s) not in progress.done]
+    limit = args.max_tentativas
+    todo = [s for s in pending if not limit or progress.attempts(key_of(s)) < limit]
+    # never-tried sections first: the "first 20 all failed" check below must not be
+    # tripped by sections that already failed in an earlier run
+    todo.sort(key=lambda s: progress.attempts(key_of(s)))
+    print(f"{len(sections)} sections in {uf}" + (f" / {args.municipio}" if args.municipio else "")
+          + f": {len(sections) - len(pending)} already done, {len(pending) - len(todo)} given up "
+          f"after {limit} failed runs, {len(todo)} to check")
+
+    cache_dir, cache_index = None, {}
+    if not args.no_keep_logs:
+        cache_dir = os.path.join("logs_urna", uf)
+        os.makedirs(cache_dir, exist_ok=True)
+        cache_index = build_cache_index(cache_dir)
+        print(f"{len(cache_index)} logs already downloaded")
+    print(f"{args.workers} parallel downloads"
+          + (", logs are not written to disk" if args.no_keep_logs else "")
+          + (f", stopping new sections after {args.max_minutes:g} min" if deadline else ""))
+
+    stop = {"reason": None, "hard": False}
+
+    def on_signal(signum, frame):
+        stop["reason"] = stop["reason"] or f"signal {signum}"
+        stop["hard"] = True
+    signal.signal(signal.SIGINT, on_signal)
+    signal.signal(signal.SIGTERM, on_signal)
+
+    def finish(code):  # leave without waiting for in-flight downloads
+        progress.flush()
+        sys.stdout.flush()
+        os._exit(code)
+
+    processed = found = problems_now = fresh_failures = 0
+    failed_now = []
+    window = deque(maxlen=RATE_WINDOW)  # (requests, 429s) of the last sections
+    pool = ThreadPoolExecutor(max_workers=args.workers)
+    inflight, it = {}, iter(todo)
+    run_started = time.monotonic()
+    while True:
+        if not stop["reason"] and deadline and time.monotonic() >= deadline:
+            stop["reason"] = f"--max-minutes {args.max_minutes:g} reached"
+        while not stop["reason"] and len(inflight) < args.workers * 2:
+            s = next(it, None)
+            if s is None:
+                break
+            inflight[pool.submit(check_section, ciclo, pleito, uf, s,
+                                 cache_dir, cache_index, cutoff)] = s
+        if not inflight or stop["hard"]:
+            break
+        finished, _ = wait(inflight, timeout=1, return_when=FIRST_COMPLETED)
+        for fut in finished:
+            s = inflight.pop(fut)
+            key = key_of(s)
+            res, err, transient, reqs = fut.result()
+            processed += 1
+            window.append(reqs)
+            if err:
+                problems_now += 1
+                fresh_failures += 0 if transient else 1
+                failed_now.append(key)
+                progress.set_problem(s, err, progress.attempts(key) + (0 if transient else 1))
+            else:
+                total, late, first_late, last_vote = res
+                progress.add_done(key)
+                progress.clear_problem(key)
+                if late:
+                    found += 1
+                    progress.add_row({
+                        "uf": uf, "municipio": s["mun"], "nome_municipio": s["nome"],
+                        "zona": s["zona"], "secao": s["secao"],
+                        "hora_corte_local": cutoff.strftime("%H:%M"),
+                        "votos_no_dia": total, "votos_apos_corte": late,
+                        "primeiro_voto_apos_corte": first_late.strftime("%H:%M:%S"),
+                        "ultimo_voto": last_vote.strftime("%H:%M:%S"),
+                    })
+            if processed % FLUSH_EVERY == 0:
+                progress.flush()
+            if processed % 200 == 0 or processed == len(todo):
+                el = time.monotonic() - run_started
+                eta = el / processed * (len(todo) - processed)
+                print(f"  {processed}/{len(todo)} checked, {found} with late votes, "
+                      f"{problems_now} problems  [{processed / el:.1f}/s, ~{eta / 60:.0f} min left]")
             # stop early if the very first sections all fail: layout probably changed
-            if done == 20 and len(problems) == 20:
-                print("\nFirst 20 sections all failed. Example:", problems[0][1])
-                pool.shutdown(cancel_futures=True)
-                sys.exit(1)
+            if processed == 20 and fresh_failures == 20:
+                print("\nFirst 20 sections all failed. Example:", err)
+                for k in failed_now:  # not the sections' fault: don't count it as an attempt
+                    progress.clear_problem(k)
+                finish(1)
+            if len(window) == RATE_WINDOW and not stop["reason"]:
+                n_req = sum(w[0] for w in window)
+                n_429 = sum(w[1] for w in window)
+                if n_req and n_429 / n_req > RATE_LIMIT:
+                    stop["reason"] = (f"rate limited: {n_429} of {n_req} requests in the last "
+                                      f"{RATE_WINDOW} sections were HTTP 429")
 
-    suffix = f"_{args.municipio}" if args.municipio else ""
-    out = f"secoes_apos_17h_{uf}{suffix}.csv"
-    rows.sort(key=lambda r: (-r["votos_apos_corte"], r["municipio"], r["zona"], r["secao"]))
-    fields = ["uf", "municipio", "nome_municipio", "zona", "secao", "hora_corte_local", "votos_no_dia",
-              "votos_apos_corte", "primeiro_voto_apos_corte", "ultimo_voto"]
-    with open(out, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=fields)
-        w.writeheader()
-        w.writerows(rows)
+    if stop["hard"]:
+        pool.shutdown(wait=False, cancel_futures=True)
+        print(f"\nStopped ({stop['reason']}); saving state.")
+        finish(0)
+    pool.shutdown(wait=True)
+    progress.flush()
 
-    if problems:
-        with open(f"problemas_{uf}{suffix}.csv", "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["municipio", "zona", "secao", "problema", "indice"])
-            for s, err in problems:
-                w.writerow([s["mun"], s["zona"], s["secao"], err, s.get("indice", "")])
-
-    print(f"\n{len(rows)} of {len(sections)} sections had votes at or after {cutoff:%H:%M} "
-          f"local ({args.hora} {'local' if args.hora_local else 'Brasília'}). "
-          f"Saved to {out}" + (f"; {len(problems)} sections couldn't be read "
-                                f"(see problemas_{uf}{suffix}.csv)" if problems else ""))
+    remaining = [s for s in todo if key_of(s) not in progress.done]
+    print(f"\nThis run: {processed} sections checked, {found} with votes at or after "
+          f"{cutoff:%H:%M} local ({args.hora} {'local' if args.hora_local else 'Brasília'}), "
+          f"{problems_now} failed. Total done in {uf}: "
+          f"{sum(key_of(s) in progress.done for s in sections)}/{len(sections)}.")
+    if stop["reason"]:
+        print(f"Stopped early: {stop['reason']}. State saved; {len(remaining)} sections left to try.")
+    elif remaining:
+        print(f"{len(remaining)} sections failed this run; they will be retried next run "
+              f"(see {progress.problems_path}).")
+    elif not args.municipio:
+        progress.mark_complete()
+        print(f"Nothing left to check in {uf}: wrote {progress.complete_path}"
+              + (f" ({len(pending) - len(todo)} sections given up, see {progress.problems_path})"
+                 if len(pending) > len(todo) else ""))
 
 
 if __name__ == "__main__":

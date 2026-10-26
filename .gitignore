@@ -1,0 +1,6 @@
+logs_urna/
+*.jez
+*.logjez
+.venv/
+__pycache__/
+debug_aux_*.json
