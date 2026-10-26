@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { loadAll } from './data.js';
-import { fmtHM } from './format.js';
 import { useRoute } from './router.js';
 import { DEFAULT_LIM, readFilters } from './stats.js';
 import Explorar from './pages/Explorar.jsx';
@@ -49,7 +48,7 @@ export default function App() {
     <div className="app">
       <a className="skip" href="#conteudo">Pular para o conteúdo</a>
       <header className="topbar">
-        <button type="button" className="brand" onClick={() => nav('/')}>Seções das {fmtHM(f.lim)} · 2º turno 2026</button>
+        <button type="button" className="brand" onClick={() => nav('/')}>Seções das 19h · 2º turno 2026</button>
         <button type="button" className="menu-btn" aria-expanded={menu} onClick={() => setMenu(!menu)}>Menu</button>
         <nav className={`nav ${menu ? 'open' : ''}`} aria-label="Principal">
           {NAV.map(([to, label]) => <button key={to} type="button" aria-current={path === to ? 'page' : undefined} onClick={() => nav(to)}>{label}</button>)}

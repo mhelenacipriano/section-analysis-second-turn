@@ -133,3 +133,16 @@ commit `data/t1/` and `data/tse_ibge.csv`; the `site` workflow rebuilds and publ
 Known limits: the urna clock is converted by state (AC −2h, AM/RO/RR/MT/MS −1h); Fernando de Noronha is
 fixed by hand and Amazonas municipalities on Acre time are detected from their closing times. The closing
 time is when the operator confirmed closing, not proof that voting happened until then.
+
+## The list: sections closed around 19h
+
+```
+python scripts/secoes_encerradas_19h.py              # closed at/after 18:50 Brasília (default)
+python scripts/secoes_encerradas_19h.py --desde 19:00
+```
+
+Writes `results_enc/secoes_encerradas_19h.csv`: one row per section with the confirmed closing time **in
+Brasília time**, the last vote, votes after 17h, and the first-turn result (Lula / Flávio votes and %, winner).
+The raw `results_enc/encerramentos_<UF>.csv` files are in the urna's local time (16:30 on an MT/MS/AM/RO/RR
+urna is 17:30 Brasília) and keep every section that closed from 17:30 Brasília on, so the site's slider can
+move; only the sections in the window above are "closed around 19h". Clock rules live in `scripts/clocks.py`.

@@ -5,7 +5,7 @@
 //         (null = the log has no closing record); ult = last vote; va = votes after 17h
 export const LULA = 13;
 export const FLAVIO = 22;
-export const DEFAULT_LIM = 19 * 60;          // "closed at 19h", in minutes since midnight
+export const DEFAULT_LIM = 18 * 60 + 50;     // "closed around 19h": from 18:50 Brasília, in minutes since midnight
 export const RECORD_FROM = 17 * 3600 + 30 * 60;   // detail rows exist for closings at/after this
 export const LIM_MIN = 17 * 60 + 30;
 export const LIM_MAX = 20 * 60;

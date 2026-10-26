@@ -23,23 +23,16 @@ import csv
 import glob
 import json
 import os
-import statistics
 import sys
 from datetime import datetime, timezone
 
 import pandas as pd
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+from clocks import muni_offsets  # noqa: E402
 LULA, FLAVIO = 13, 22
 RECORD_FROM = 17 * 3600 + 30 * 60
-# hours to add to Brasília time to get the urna clock (same table as votos_apos_17h.py)
-UF_OFFSET = {"AC": -2, "AM": -1, "RR": -1, "RO": -1, "MT": -1, "MS": -1}
-MUN_OFFSET = {("PE", "30015"): +1}   # Fernando de Noronha, UTC-2
-# states where some municipalities run on another clock; their offset is read from the data:
-# a municipality's sections normally confirm closing within minutes after the Brasília cutoff, so
-# the median local closing time says which clock the urnas use.
-DETECT_OFFSET = {"AM"}
-NORMAL_CLOSE = 17 * 3600 + 4 * 60
 UFS = ["AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA", "PB",
        "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO", "ZZ"]
 
@@ -88,19 +81,9 @@ def main():
     uni["loc"] = [close_local[(u, k)] for u, k in zip(uni.uf, uni.key)]
 
     # --- clock of each municipality ------------------------------------------------------------
-    def state_off(uf, mun):
-        return MUN_OFFSET.get((uf, mun), UF_OFFSET.get(uf, 0))
-    muni_off, detected = {}, []
-    for (uf, mun), grp in uni.groupby(["uf", "municipio"]):
-        off = state_off(uf, mun)
-        if uf in DETECT_OFFSET:
-            vals = [v for v in grp["loc"] if v is not None]
-            if len(vals) >= 3:
-                k = round((statistics.median(vals) - NORMAL_CLOSE) / 3600)
-                if k != off and -3 <= k <= 1:
-                    detected.append((uf, mun, grp.nome_municipio.iloc[0], off, k))
-                    off = k
-        muni_off[(uf, mun)] = off
+    muni_off, detected = muni_offsets(
+        ((key, [v for v in g["loc"] if v is not None], g.nome_municipio.iloc[0])
+         for key, g in uni.groupby(["uf", "municipio"])))
     uni["off"] = [muni_off[(u, m)] for u, m in zip(uni.uf, uni.municipio)]
     uni["enc"] = [None if l is None else l - o * 3600 for l, o in zip(uni["loc"], uni.off)]
     if detected:

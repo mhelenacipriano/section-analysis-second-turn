@@ -42,9 +42,9 @@ export default function Overview({ data, f, setF, go }) {
     <div className="stack">
       <header className="hero">
         <p className="eyebrow">2º turno de 2026 · 25 de outubro</p>
-        <h1>Quantas seções encerraram a votação às {T}?</h1>
+        <h1>Quantas seções encerraram a votação por volta das 19h?</h1>
         <p className="hero-sub">
-          Seções eleitorais cujo log da urna registra o encerramento da votação às {T} (horário de Brasília) ou depois — e como essas mesmas seções votaram no 1º turno.
+          Seções eleitorais cujo log da urna registra o encerramento da votação às {T} ou depois (horário de Brasília) — e como essas mesmas seções votaram no 1º turno.
         </p>
         <p className="disclaimer">
           “Encerramento” é o registro <em>Procedimento de encerramento confirmado</em> no log de cada urna, não necessariamente um voto àquela hora.
