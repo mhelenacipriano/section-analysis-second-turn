@@ -19,17 +19,21 @@ export default function Mapa({ data, f, setF, themeKey }) {
   const { L, lang } = useLang();
   const METRICS = metrics(L);
   const [metric, setMetric] = useState('atT');
-  const [geo, setGeo] = useState(null);
+  const file = f.uf ? `mun_${f.uf}.json` : 'uf.json';
+  const [loaded, setLoaded] = useState(null);          // { file, data }
   const [err, setErr] = useState(null);
   const level = f.uf ? 'mun' : 'uf';
   const M = METRICS[metric];
+  // only ever draw geometry that belongs to the current level: a stale one (the previous
+  // state's municipalities) must never reach the map while the new file is loading
+  const geo = loaded && loaded.file === file ? loaded.data : null;
 
   useEffect(() => {
     let alive = true;
-    setGeo(null); setErr(null);
-    loadGeo(f.uf ? `mun_${f.uf}.json` : 'uf.json').then((g) => alive && setGeo(g)).catch((e) => alive && setErr(e));
+    setErr(null);
+    loadGeo(file).then((data) => alive && setLoaded({ file, data })).catch((e) => alive && setErr(e));
     return () => { alive = false; };
-  }, [f.uf]);
+  }, [file]);
 
   const units = useMemo(() => byUnit(data, f.lim, level), [data, f.lim, level]);
   const valueOf = (feat) => {

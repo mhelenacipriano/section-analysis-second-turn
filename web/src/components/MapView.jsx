@@ -10,6 +10,9 @@ export function ramp(t, from, to) {
   return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * t)).join(',')})`;
 }
 
+// identifies a geometry set, so a layer is rebuilt whenever its data changes (react-leaflet ignores new `data`)
+const geoId = (geo) => `${geo.features.length}:${geo.features[0]?.properties?.id ?? geo.features[0]?.properties?.uf}`;
+
 function Fit({ geo }) {
   const map = useMap();
   useEffect(() => {
@@ -91,7 +94,7 @@ export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'acce
   };
   return (
     <MapContainer className="mapa" zoomSnap={0.25} attributionControl={false} scrollWheelZoom={false} minZoom={2} style={{ background: 'var(--soft)' }}>
-      <GeoJSON key={`${version}|${selected}|${themeKey}`} data={geo} style={style} onEachFeature={each} />
+      <GeoJSON key={`${geoId(geo)}|${version}|${selected}|${themeKey}`} data={geo} style={style} onEachFeature={each} />
       <Fit geo={geo} />
       {tagOf && <Labels geo={geo} tagOf={tagOf} version={`${version}|${themeKey}`} />}
     </MapContainer>
