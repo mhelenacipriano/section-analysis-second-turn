@@ -36,17 +36,17 @@ export default function Pontuais({ data, go, themeKey }) {
   return (
     <div className="stack">
       <h1 className="page-title">Estados em que mais seções fecharam às 17h</h1>
-      <p className="sub">Seções encerradas no horário normal (antes das 17h30, Brasília), sem ficar abertas até mais tarde, e quem venceu cada estado no 1º turno.</p>
+      <p className="sub">Contamos as seções que <strong>não</strong> ficaram abertas até mais tarde: a urna confirmou o encerramento antes das 17h30 (Brasília), o horário normal. Nenhuma seção fechou antes das 17h. E quem venceu cada estado no 1º turno.</p>
 
       <div className="stats">
-        <Stat k="Seções encerradas no horário" v={fmtPct(all.n ? all.on / all.n : 0, 2)} sub={`${fmtN(all.on)} de ${fmtN(all.n)} (${rows.length} estados)`} />
+        <Stat k="Seções que fecharam no horário (antes das 17h30)" v={fmtPct(all.n ? all.on / all.n : 0, 2)} sub={`${fmtN(all.on)} de ${fmtN(all.n)} (${rows.length} estados)`} />
         {best && <Stat k="Maior percentual" v={`${best.uf} ${fmtPct(best.pct, 2)}`} sub={`venceu: ${WINNER[best.winner]}`} />}
         {worst && <Stat k="Menor percentual" v={`${worst.uf} ${fmtPct(worst.pct, 2)}`} sub={`venceu: ${WINNER[worst.winner]}`} />}
         <Stat k="Estados vencidos no 1º turno" v={`Lula ${wins.lula} · Flávio ${wins.flavio}`} sub="entre os estados com dados" />
       </div>
 
       <section className="story" aria-labelledby="mp">
-        <h2 id="mp">Mapa: cor = quem venceu o estado, número = % encerradas no horário</h2>
+        <h2 id="mp">Mapa: cor = quem venceu o estado, número = % das seções que fecharam no horário</h2>
         <div className="legend" aria-label="Legenda do mapa">
           <span><i className="sw lula" />Lula venceu o estado</span>
           <span><i className="sw flavio" />Flávio Bolsonaro venceu o estado</span>
@@ -69,7 +69,7 @@ export default function Pontuais({ data, go, themeKey }) {
       </section>
 
       <section className="story" aria-labelledby="rk">
-        <h2 id="rk">Os 10 estados com mais seções encerradas no horário</h2>
+        <h2 id="rk">Os 10 estados com maior porcentagem de seções que fecharam no horário (sem ficar abertas até mais tarde)</h2>
         <ol className="rank-bars">
           {top.map((r) => (
             <li key={r.uf}>
