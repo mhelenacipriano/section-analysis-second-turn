@@ -1,19 +1,13 @@
 import { useMemo } from 'react';
 import DataTable from '../components/DataTable.jsx';
-import MapView from '../components/MapView.jsx';
+import OnTimeMap, { WINNER } from '../components/OnTimeMap.jsx';
 import { Legend, Note, Stat } from '../components/ui.jsx';
-import { loadGeo } from '../data.js';
 import { fmtN, fmtPct } from '../format.js';
 import { CAT_LABEL, onTimeByState } from '../stats.js';
-import { useEffect, useState } from 'react';
-
-const WINNER = { lula: 'Lula', flavio: 'Flávio Bolsonaro', outros: 'Outro candidato' };
 
 export default function Pontuais({ data, go, themeKey }) {
-  const [geo, setGeo] = useState(null);
   const rows = useMemo(() => onTimeByState(data).sort((a, b) => b.pct - a.pct), [data]);
   const byUf = useMemo(() => new Map(rows.map((r) => [r.uf, r])), [rows]);
-  useEffect(() => { loadGeo('uf.json').then(setGeo).catch(() => setGeo(null)); }, []);
 
   const all = rows.reduce((a, r) => ({ n: a.n + r.n, on: a.on + r.on.n }), { n: 0, on: 0 });
   const best = rows[0], worst = rows[rows.length - 1];
@@ -47,25 +41,7 @@ export default function Pontuais({ data, go, themeKey }) {
 
       <section className="story" aria-labelledby="mp">
         <h2 id="mp">Mapa: cor = quem venceu o estado, número = % das seções que fecharam no horário</h2>
-        <div className="legend" aria-label="Legenda do mapa">
-          <span><i className="sw lula" />Lula venceu o estado</span>
-          <span><i className="sw flavio" />Flávio Bolsonaro venceu o estado</span>
-          <span><i className="sw neu" />sem dados</span>
-        </div>
-        <div className="mapa-caixa">
-          {geo ? (
-            <MapView
-              geo={geo} themeKey={themeKey} version={`pontual|${rows.length}`}
-              keyOf={(f) => f.properties.uf}
-              valueOf={(f) => byUf.get(f.properties.uf)?.pct ?? null} max={1}
-              colorOf={(f, c) => { const r = byUf.get(f.properties.uf); return r ? c[r.winner] : c.none; }}
-              labelOf={(f) => { const r = byUf.get(f.properties.uf); return r ? `${f.properties.uf}: ${fmtPct(r.pct, 2)} no horário · venceu ${WINNER[r.winner]}` : `${f.properties.uf}: sem dados`; }}
-              tagOf={(f) => { const r = byUf.get(f.properties.uf); return r ? `<span><b>${f.properties.uf}</b><br>${fmtPct(r.pct, 1)}</span>` : ''; }}
-              onPick={(uf) => byUf.has(uf) && go('/mapa', { uf })}
-            />
-          ) : <p className="empty">Carregando mapa…</p>}
-        </div>
-        <Note>Cor e rótulo de texto: o vencedor também aparece por extenso na tabela e no ranking abaixo. Clique num estado para ver os municípios.</Note>
+        <OnTimeMap data={data} go={go} themeKey={themeKey} />
       </section>
 
       <section className="story" aria-labelledby="rk">

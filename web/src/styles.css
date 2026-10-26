@@ -178,3 +178,4 @@ td.empty { text-align: center; white-space: normal; }
 .rb-fill b { margin-right: 4px; }
 @media (max-width: 560px) { .rank-bars li { grid-template-columns: 30px minmax(0, 1fr); } }
 .sw.neu { background: var(--soft); border: 1px solid var(--line); }
+.story[id] { scroll-margin-top: 72px; }

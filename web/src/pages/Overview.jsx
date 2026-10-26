@@ -3,6 +3,7 @@ import Histogram from '../components/Histogram.jsx';
 import { Filters } from '../components/Filters.jsx';
 import { Legend, Note, StackBar, Stat } from '../components/ui.jsx';
 import DataTable from '../components/DataTable.jsx';
+import OnTimeMap from '../components/OnTimeMap.jsx';
 import { fmtDec, fmtHM, fmtN, fmtPct, fmtPP } from '../format.js';
 import { expectedVsObserved, groups, histogram, voteShare, wilson } from '../stats.js';
 
@@ -17,7 +18,7 @@ export function scopeLabel(f, data) {
   return f.uf || 'todo o país (estados com dados)';
 }
 
-export default function Overview({ data, f, setF, go }) {
+export default function Overview({ data, f, setF, go, themeKey }) {
   const g = useMemo(() => groups(data, f), [data, f]);
   const ev = useMemo(() => expectedVsObserved(g, f, data), [g, f, data]);
   const bins = useMemo(() => histogram(g.rows), [g]);
@@ -51,6 +52,8 @@ export default function Overview({ data, f, setF, go }) {
           Análise descritiva de dados públicos do TSE: o site mostra quando e onde as urnas foram encerradas, não explica por quê, e não afirma irregularidade.
         </p>
       </header>
+
+      <p><a className="btn primary" href="#mapa-estados" onClick={(e) => { e.preventDefault(); document.getElementById('mapa-estados')?.scrollIntoView({ behavior: 'smooth' }); }}>Ver o mapa dos estados ↓</a></p>
 
       <Filters data={data} f={f} setF={setF} />
 
@@ -95,6 +98,12 @@ export default function Overview({ data, f, setF, go }) {
         {vs && vsr && (
           <Note>Votos válidos no 1º turno: nas seções de {T}+ Lula teve {fmtPct(vs.l)} e Flávio {fmtPct(vs.f)} ({fmtN(vs.valid)} votos); nas demais, Lula {fmtPct(vsr.l)} e Flávio {fmtPct(vsr.f)}.</Note>
         )}
+      </section>
+
+      <section className="story" id="mapa-estados" aria-labelledby="mpe">
+        <h2 id="mpe">Mapa dos estados: quem venceu e quanto fechou no horário</h2>
+        <OnTimeMap data={data} go={go} themeKey={themeKey} />
+        <p><button type="button" className="btn" onClick={() => go('/pontuais')}>Ver o ranking completo dos estados →</button></p>
       </section>
 
       {ev && ev.n > 0 && (
