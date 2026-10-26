@@ -84,3 +84,52 @@ python merge_resultados.py                                                  # re
 flight, saves, and exits 0. State is also saved every 500 sections and on Ctrl-C / SIGTERM.
 
 `votos_apos_17h.py` is the log parser (also usable on a folder of already-downloaded logs).
+
+## Closing-time scan (`tse-encerramento`)
+
+The first scan (`tse-logs`) lists sections with **votes** after 17h. A section can also be **closed** late
+without a late vote, so a second scan reads the closing sequence of each urna log: the last
+`Procedimento de encerramento confirmado` of 25/10/2026 (plus `Operador selecionou: Encerrar votação`,
+`Inicio do Encerramento`, and the last vote).
+
+- Actions tab → **`tse-encerramento` → Run workflow** (use workflow from `main`). Same design as `tse-logs`
+  (one job per UF, two at a time, 12 downloads each, resumable); it has no schedule: if a state does not finish
+  in one run (6 h limit, rate limiting), run it again.
+- `state_enc/done_<UF>.txt`: one line per section read, `municipio,zona,secao,HHMMSS` = confirmed closing time on
+  the urna clock (`-` if the log has none). `state_enc/complete_<UF>` when a state is finished.
+- `results_enc/encerramentos_<UF>.csv` (+ `encerramentos_BR.csv`): sections that closed at/after 17:30 Brasília or
+  have no closing record, with `encerrar_selecionado`, `encerramento_confirmado`, `inicio_encerramento`,
+  `ultimo_voto`, `votos_apos_corte` (urna clock, `HH:MM:SS`).
+- Locally: `python baixar_logs_resultados.py --uf AP --pleito 3221 --workers 12 --no-keep-logs --encerramento`.
+
+## Dashboard (`web/`)
+
+React + Vite single-page site (hash routes, filters kept in the URL): overview, map (state → municipality),
+explore (states/municipalities), sections table, reports (threshold sweep, closing-time histogram,
+expected × observed within each municipality, changed polling places) and methodology. Everything is
+filterable by state, municipality, closing-time threshold (default 19:00 Brasília), first-turn winner and
+"polling place changed"; tables export CSV.
+
+Data pipeline (Python, `pip install pandas`):
+
+```
+# 1. first-turn results by section, as the TSE zips (parts of one state, e.g. SP_parte_01..09, in the SAME call)
+python scripts/ingest_t1.py AC.zip AL.zip AM.zip AP.zip BA.zip        # -> data/t1/secoes_t1_<UF>.csv.gz
+# 2. municipality codes TSE <-> IBGE (only needed when a new state is added)
+python scripts/build_crosswalk.py                                      # -> data/tse_ibge.csv
+# 3. municipality boundaries (once)
+python scripts/fetch_geo.py                                            # -> web/public/geo/
+# 4. everything the site reads
+python scripts/build_site_data.py                                      # -> web/public/data/*.json (git-ignored)
+```
+
+Run the site: `cd web && npm install && npm run dev` (or `npm run build` and serve `web/dist`).
+
+Only sections that have **both** a first-turn result and a closing time are analysed; the rest are listed per
+state on the Methodology page and never counted as "closed on time". Adding states = ingest the new zips,
+commit `data/t1/` and `data/tse_ibge.csv`; the `site` workflow rebuilds and publishes
+(Settings → Pages → Source: GitHub Actions). It also republishes when a `tse-encerramento` run finishes.
+
+Known limits: the urna clock is converted by state (AC −2h, AM/RO/RR/MT/MS −1h); Fernando de Noronha is
+fixed by hand and Amazonas municipalities on Acre time are detected from their closing times. The closing
+time is when the operator confirmed closing, not proof that voting happened until then.
