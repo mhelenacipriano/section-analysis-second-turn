@@ -1,0 +1,71 @@
+name: tse-logs-collect
+
+# Manual recovery: commit the state/results artifacts of a finished tse-logs run to the
+# repo. Normally the "commit results" job of tse-logs does this by itself; use this one
+# when that job failed or was skipped (artifacts are kept for 7 days).
+#
+#   Actions tab -> tse-logs-collect -> Run workflow -> run id of the tse-logs run
+#   (the number in the run's URL: .../actions/runs/<run id>).
+#
+# Pick the branch the results should go to (normally main) in "Use workflow from".
+# Only collect the most recent run: older artifacts hold older (shorter) state files and
+# would overwrite newer progress.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: "tse-logs run id whose artifacts to commit"
+        required: true
+
+# same group as tse-logs: never commits while a download run is working
+concurrency:
+  group: tse-logs
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  actions: read   # to download the artifacts of another run
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: tse-*
+          path: incoming
+          merge-multiple: true
+          run-id: ${{ inputs.run_id }}
+          github-token: ${{ github.token }}
+
+      - name: Merge the states' files and rebuild the national CSV
+        run: |
+          find incoming -type f | sort
+          cp -a incoming/. .
+          python3 merge_resultados.py
+
+      - name: Commit and push
+        run: |
+          git add state results
+          if git diff --cached --quiet; then
+            echo "Nothing changed, nothing to commit."
+            exit 0
+          fi
+          checked=$(cat state/done_*.txt | wc -l)
+          late=0
+          if [ -f results/secoes_apos_17h_BR.csv ]; then
+            late=$(( $(wc -l < results/secoes_apos_17h_BR.csv) - 1 ))
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "tse-logs: collect artifacts of run ${{ inputs.run_id }} (${checked} sections checked, ${late} with late votes)"
+          for attempt in 1 2 3; do
+            git push && exit 0
+            git pull --rebase -X theirs
+          done
+          exit 1

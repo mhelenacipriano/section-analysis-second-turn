@@ -26,6 +26,10 @@ How a run works:
   run picks up where it stopped (a job can't exceed 6 hours).
 - A final job collects every state's files, rebuilds `results/secoes_apos_17h_BR.csv`, and
   makes **one** commit. Runs never overlap (`concurrency: tse-logs`).
+- The results are committed to the branch the run was started from, so use
+  **Use workflow from: `main`** when starting it.
+- If the commit job ever fails, the state files are still in the run's artifacts for 7 days:
+  **Actions → `tse-logs-collect` → Run workflow** with that run's id commits them.
 - A state with `state/complete_<UF>` is skipped. When all 28 exist the workflow does nothing.
 
 ## Reading progress

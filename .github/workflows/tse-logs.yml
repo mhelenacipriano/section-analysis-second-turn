@@ -27,7 +27,11 @@ jobs:
     env:
       UF: ${{ matrix.uf }}
     steps:
+      # the tip of the branch, not the commit that triggered the run: a run that waited
+      # in the concurrency queue must see the progress the previous run committed
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - name: Skip if this state is already complete
         id: gate
@@ -84,7 +88,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # the tip of the branch, not the commit that triggered the run: a run that waited
+      # in the concurrency queue must see the progress the previous run committed
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.ref_name }}
 
       - uses: actions/download-artifact@v4
         continue-on-error: true   # no artifacts at all when every state was already complete
@@ -116,6 +124,6 @@ jobs:
                      -m "Workflow run ${{ github.run_id }}"
           for attempt in 1 2 3; do
             git push && exit 0
-            git pull --rebase
+            git pull --rebase -X theirs   # our files are the complete, newer ones
           done
           exit 1
