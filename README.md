@@ -104,6 +104,12 @@ without a late vote, so a second scan reads the closing sequence of each urna lo
 
 ## Dashboard (`web/`)
 
+The site is bilingual (Portuguese / English, switch in the top bar; the first visit follows the browser language) and has
+a light and a dark theme (toggle in the top bar); both choices are remembered. Texts are written inline as
+`L('português', 'English')` (see `web/src/i18n.jsx`). Under the state map there is a hypothetical report, "what if votes
+were missing in the sections that closed early": pick a cut (17:30 by default) and the share of voters who could not vote; it shows
+which candidate would lose more votes in absolute numbers, assuming they would have voted like the others in their section (1st round).
+
 React + Vite single-page site (hash routes, filters kept in the URL): overview, map (state → municipality),
 "Fecharam às 17h" (states ranked by share of sections closed on time, with the first-turn winner of each state; map coloured red/blue by winner and labelled with the percentage), explore (states/municipalities), sections table, reports (threshold sweep, closing-time histogram,
 expected × observed within each municipality, changed polling places) and methodology. Everything is

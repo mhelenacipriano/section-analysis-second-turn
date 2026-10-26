@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
+import { useLang } from '../i18n.jsx';
 import { downloadCsv, fmtN, toCsv } from '../format.js';
 
 /** columns: { key, label, get(row), render?(row), num?, csv?(row), title? } */
-export default function DataTable({ rows, columns, csvName, initialSort, pageSize = 25, search = true, onRow, empty = 'Nenhuma linha com esses filtros.' }) {
+export default function DataTable({ rows, columns, csvName, initialSort, pageSize = 25, search = true, onRow, empty }) {
+  const { L } = useLang();
   const [q, setQ] = useState('');
   const [sort, setSort] = useState(initialSort || null);   // { key, dir }
   const [page, setPage] = useState(0);
@@ -35,9 +37,9 @@ export default function DataTable({ rows, columns, csvName, initialSort, pageSiz
   return (
     <div className="tabela">
       <div className="tabela-top">
-        {search && <input type="search" className="busca" placeholder="Buscar na tabela" aria-label="Buscar na tabela" value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} />}
-        <span className="note">{fmtN(sorted.length)} linhas</span>
-        {csvName && <button type="button" className="btn" onClick={() => downloadCsv(csvName, toCsv(sorted, columns))}>Baixar CSV</button>}
+        {search && <input type="search" className="busca" placeholder={L('Buscar na tabela', 'Search the table')} aria-label={L('Buscar na tabela', 'Search the table')} value={q} onChange={(e) => { setQ(e.target.value); setPage(0); }} />}
+        <span className="note">{fmtN(sorted.length)} {L('linhas', 'rows')}</span>
+        {csvName && <button type="button" className="btn" onClick={() => downloadCsv(csvName, toCsv(sorted, columns))}>{L('Baixar CSV', 'Download CSV')}</button>}
       </div>
       <div className="tabela-scroll">
         <table>
@@ -56,15 +58,15 @@ export default function DataTable({ rows, columns, csvName, initialSort, pageSiz
                 {columns.map((c) => <td key={c.key} className={c.num ? 'num' : ''}>{c.render ? c.render(r) : c.get(r) ?? '–'}</td>)}
               </tr>
             ))}
-            {!view.length && <tr><td colSpan={columns.length} className="empty">{empty}</td></tr>}
+            {!view.length && <tr><td colSpan={columns.length} className="empty">{empty || L('Nenhuma linha com esses filtros.', 'No rows with these filters.')}</td></tr>}
           </tbody>
         </table>
       </div>
       {pages > 1 && (
         <div className="pager">
-          <button type="button" className="btn" disabled={cur === 0} onClick={() => setPage(cur - 1)}>Anterior</button>
-          <span>Página {cur + 1} de {pages}</span>
-          <button type="button" className="btn" disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>Próxima</button>
+          <button type="button" className="btn" disabled={cur === 0} onClick={() => setPage(cur - 1)}>{L('Anterior', 'Previous')}</button>
+          <span>{L('Página', 'Page')} {cur + 1} {L('de', 'of')} {pages}</span>
+          <button type="button" className="btn" disabled={cur >= pages - 1} onClick={() => setPage(cur + 1)}>{L('Próxima', 'Next')}</button>
         </div>
       )}
     </div>

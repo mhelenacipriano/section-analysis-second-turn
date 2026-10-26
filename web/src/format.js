@@ -1,6 +1,8 @@
-const nf = new Intl.NumberFormat('pt-BR');
-export const fmtN = (n) => (n == null || Number.isNaN(n) ? '–' : nf.format(Math.round(n)));
-export const fmtDec = (n, d = 1) => (n == null || !Number.isFinite(n) ? '–' : n.toLocaleString('pt-BR', { minimumFractionDigits: d, maximumFractionDigits: d }));
+// number format follows the page language (set by App before each render)
+let locale = 'pt-BR';
+export const setLocale = (lang) => { locale = lang === 'en' ? 'en-US' : 'pt-BR'; };
+export const fmtN = (n) => (n == null || Number.isNaN(n) ? '–' : Math.round(n).toLocaleString(locale));
+export const fmtDec = (n, d = 1) => (n == null || !Number.isFinite(n) ? '–' : n.toLocaleString(locale, { minimumFractionDigits: d, maximumFractionDigits: d }));
 export const fmtPct = (x, d = 1) => (x == null || !Number.isFinite(x) ? '–' : `${fmtDec(x * 100, d)}%`);
 export const fmtPP = (x, d = 1) => (x == null || !Number.isFinite(x) ? '–' : `${x > 0 ? '+' : ''}${fmtDec(x, d)} p.p.`);
 const p2 = (n) => String(n).padStart(2, '0');

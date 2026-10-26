@@ -37,20 +37,27 @@ code { background: var(--panel2); padding: 1px 6px; border-radius: 6px; font-siz
 
 /* ---------- Topbar ---------- */
 .topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 10px 0; border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1000; background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px); }
-.brand { all: unset; cursor: pointer; font-family: var(--serif); font-size: 1.05rem; padding: 8px 0; }
-.menu-btn { display: none; min-height: 44px; padding: 0 16px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); cursor: pointer; }
-.nav { display: flex; gap: 2px; flex-wrap: wrap; }
+.brand { all: unset; cursor: pointer; font-family: var(--serif); font-size: 1.05rem; padding: 8px 0; order: 0; }
+.ctrls { display: flex; align-items: center; gap: 8px; order: 2; }
+.nav { display: flex; gap: 2px; flex-wrap: wrap; order: 1; flex: 1 1 auto; justify-content: center; }
 .nav button { all: unset; cursor: pointer; padding: 10px 12px; color: var(--muted); font-size: .92rem; border-bottom: 2px solid transparent; }
 .nav button:hover { color: var(--fg); }
 .nav button[aria-current="page"] { color: var(--fg); border-bottom-color: var(--lula); }
 .nav button:focus-visible { outline: 2px solid var(--accent); }
-.nav .tema { margin-left: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; }
-@media (max-width: 860px) {
+.lang { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; background: var(--panel); }
+.lang button { all: unset; cursor: pointer; padding: 8px 12px; min-height: 20px; font-size: .82rem; font-weight: 600; color: var(--muted); }
+.lang button.on { background: var(--red-solid); color: #fff; }
+.lang button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.icon-btn { min-height: 40px; display: inline-flex; align-items: center; gap: 6px; padding: 0 12px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); cursor: pointer; font-size: .85rem; }
+.icon-btn:hover { background: var(--panel2); }
+.icon-btn span[aria-hidden] { font-size: 1.1rem; line-height: 1; }
+.menu-btn { display: none; min-height: 40px; padding: 0 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); cursor: pointer; }
+@media (max-width: 900px) {
   .menu-btn { display: inline-block; }
-  .nav { display: none; width: 100%; flex-direction: column; padding: 4px 0 8px; }
+  .tema-txt { display: none; }
+  .nav { display: none; width: 100%; flex-direction: column; padding: 4px 0 8px; order: 3; justify-content: flex-start; }
   .nav.open { display: flex; }
   .nav button { padding: 14px 4px; font-size: 1rem; border-bottom: 1px solid var(--line); }
-  .nav .tema { margin: 8px 0 0; text-align: center; }
 }
 .subnav { display: flex; gap: 8px; flex-wrap: wrap; }
 .subnav button { min-height: 44px; padding: 0 16px; border: 1px solid var(--line); background: var(--panel); border-radius: 999px; cursor: pointer; color: var(--muted); }
@@ -179,3 +186,4 @@ td.empty { text-align: center; white-space: normal; }
 @media (max-width: 560px) { .rank-bars li { grid-template-columns: 30px minmax(0, 1fr); } }
 .sw.neu { background: var(--soft); border: 1px solid var(--line); }
 .story[id] { scroll-margin-top: 72px; }
+a.btn { text-decoration: none; }

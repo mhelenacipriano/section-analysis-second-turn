@@ -22,7 +22,7 @@ export function readFilters(q) {
 }
 
 export const category = (v) => (v === LULA ? 'lula' : v === FLAVIO ? 'flavio' : 'outros');
-export const CAT_LABEL = { lula: 'Lula', flavio: 'Flávio Bolsonaro', outros: 'Outros / empate' };
+export const catLabel = (cat, L) => ({ lula: 'Lula', flavio: 'Flávio Bolsonaro', outros: L('Outros / empate', 'Others / tie') }[cat]);
 
 const KEYS = ['n', 'wl', 'wf', 'wo', 'vl', 'vf', 'vo', 'vb', 'vn', 'ap', 'cp'];
 export const zero = () => Object.fromEntries(KEYS.map((k) => [k, 0]));
@@ -190,4 +190,31 @@ export function onTimeByState(data) {
     return { uf, n: t.n, on, late: rows.n, pct: on.n / t.n, winner, lulaShare: valid ? t.vl / valid : null,
       flavioShare: valid ? t.vf / valid : null, valid };
   });
+}
+
+/**
+ * Sections that closed BEFORE the cut (minutes since midnight, Brasília), per state: every analysed
+ * section except those that closed at/after the cut or have no closing record.
+ */
+export function earlyByState(data, cutMin) {
+  const T = cutMin * 60;
+  const st = new Map();
+  const get = (uf) => st.get(uf) || st.set(uf, { uf, total: zero(), notEarly: zero() }).get(uf);
+  for (const m of data.mun) addMun(get(m.uf).total, m);
+  for (const d of data.det) if (d.enc == null || d.enc >= T) addSec(get(d.mun.uf).notEarly, d);
+  return [...st.values()].filter((x) => x.total.n).map(({ uf, total, notEarly }) => ({ uf, n: total.n, early: sub(total, notEarly) }));
+}
+
+/**
+ * Hypothetical what-if: a fraction p of the voters who turned out in those sections could not vote and
+ * would have voted like the others of the same section (we use the 1st-turn vote). Then each candidate loses
+ * p x its votes there, so in absolute numbers the candidate with more votes in those sections is the more
+ * affected one, and the margin between the two shrinks by p x (difference of their votes).
+ */
+export function missingScenario(early, p) {
+  const lossL = early.vl * p, lossF = early.vf * p;
+  return {
+    lossL, lossF, margin: early.vl - early.vf, marginEffect: lossL - lossF,
+    more: lossL === lossF ? 'empate' : lossL > lossF ? 'lula' : 'flavio',
+  };
 }
