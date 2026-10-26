@@ -19,8 +19,8 @@ export default function OnTimeMap({ data, go, themeKey }) {
   return (
     <>
       <div className="legend" aria-label={L('Legenda do mapa', 'Map legend')}>
-        <span><i className="sw lula" />{L('Lula venceu o estado', 'Lula won the state')}</span>
-        <span><i className="sw flavio" />{L('Flávio Bolsonaro venceu o estado', 'Flávio Bolsonaro won the state')}</span>
+        <span><i className="sw lula" />{L('Lula teve mais votos no estado (1º turno)', 'Lula had more votes in the state (1st round)')}</span>
+        <span><i className="sw flavio" />{L('Flávio teve mais votos no estado (1º turno)', 'Flávio had more votes in the state (1st round)')}</span>
         <span><i className="sw neu" />{L('sem dados', 'no data')}</span>
       </div>
       <div className="mapa-caixa">
@@ -37,8 +37,8 @@ export default function OnTimeMap({ data, go, themeKey }) {
         ) : <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
       </div>
       <Note>{L(
-        'O número em cada estado é a porcentagem das seções que fecharam no horário (antes das 17h30), sem ficar abertas até mais tarde; a cor é quem venceu o estado no 1º turno, também escrito na tabela e no ranking. Clique num estado para ver os municípios.',
-        'The number on each state is the share of its sections that closed on time (before 17:30), without staying open later; the colour is who won the state in the 1st round, also written in the table and the ranking. Click a state to see its municipalities.')}</Note>
+        'O número em cada estado é a porcentagem das seções que fecharam no horário (antes das 17h30), sem ficar abertas até mais tarde; a cor compara os votos de Lula e Flávio no 1º turno no estado inteiro (vermelho = Lula, azul = Flávio), também escrito na tabela e no ranking. Clique num estado para ver os municípios.',
+        'The number on each state is the share of its sections that closed on time (before 17:30), without staying open later; the colour compares Lula’s and Flávio’s 1st-round votes in the whole state (red = Lula, blue = Flávio), also written in the table and the ranking. Click a state to see its municipalities.')}</Note>
     </>
   );
 }

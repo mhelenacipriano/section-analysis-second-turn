@@ -153,23 +153,33 @@ export function sweep(rows, thresholds) {
 }
 
 // Per-state or per-municipality counts used by the map and the tables
-export function byUnit(data, lim, key) {
+export function byUnit(data, lim, key, alt = false) {
   const out = new Map();
-  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0, atVl: 0, atVf: 0, atVo: 0 }).get(k);
+  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0, atVl: 0, atVf: 0, atVo: 0, wl: 0, wf: 0, wo: 0, vl: 0, vf: 0, vo: 0, vb: 0, vn: 0, ap: 0, cp: 0 }).get(k);
   const units = key === 'uf' ? (m) => m.uf : (m) => `${m.uf}:${m.cod}`;
+  const T = lim * 60;
+  const late = (u, d) => {
+    if (d.enc == null) return;
+    u.late++;
+    if (d.enc >= T) { u.atT++; u.atVl += d.l; u.atVf += d.f; u.atVo += d.o; if (d.v === LULA) u.atTl++; else if (d.v === FLAVIO) u.atTf++; }
+  };
+  if (alt) {                                         // "changed polling place" filter: only those sections
+    for (const r of data.alt) {
+      if (!r.s || !r.mun) continue;
+      const u = get(units(r.mun), r.mun);
+      if (key !== 'uf') u.mun = r.mun;
+      addSec(u, r);
+      late(u, r);
+    }
+    return out;
+  }
   for (const m of data.mun) {
     const u = get(units(m), m);
     if (key !== 'uf') u.mun = m;
-    u.n += m.n; u.wl = (u.wl || 0) + m.wl; u.wf = (u.wf || 0) + m.wf; u.wo = (u.wo || 0) + m.wo;
-    u.vl = (u.vl || 0) + m.vl; u.vf = (u.vf || 0) + m.vf; u.vo = (u.vo || 0) + m.vo;
+    u.n += m.n; u.wl += m.wl; u.wf += m.wf; u.wo += m.wo;
+    u.vl += m.vl; u.vf += m.vf; u.vo += m.vo;
   }
-  const T = lim * 60;
-  for (const d of data.det) {
-    const u = out.get(units(d.mun));
-    if (d.enc == null) continue;
-    u.late++;
-    if (d.enc >= T) { u.atT++; u.atVl += d.l; u.atVf += d.f; u.atVo += d.o; if (d.v === LULA) u.atTl++; else if (d.v === FLAVIO) u.atTf++; }
-  }
+  for (const d of data.det) late(out.get(units(d.mun)), d);
   return out;
 }
 
@@ -186,7 +196,7 @@ export function onTimeByState(data) {
   return [...st.values()].filter((x) => x.total.n).map(({ uf, total: t, rows }) => {
     const on = sub(t, rows);
     const valid = t.vl + t.vf + t.vo;
-    const winner = t.vl > t.vf && t.vl > t.vo ? 'lula' : t.vf > t.vl && t.vf > t.vo ? 'flavio' : 'outros';
+    const winner = leader(t.vl, t.vf);
     return { uf, n: t.n, on, late: rows.n, pct: on.n / t.n, winner, lulaShare: valid ? t.vl / valid : null,
       flavioShare: valid ? t.vf / valid : null, valid };
   });
@@ -220,4 +230,5 @@ export function missingScenario(early, p) {
 }
 
 // who leads (most votes among Lula, Flávio and all others together): 'lula' | 'flavio' | 'outros'
-export const leader = (vl, vf, vo) => (vl > vf && vl > vo ? 'lula' : vf > vl && vf > vo ? 'flavio' : 'outros');
+// who has more 1st-round votes, Lula or Flávio (the red/blue of the maps); 'outros' only for an exact tie
+export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outros');

@@ -28,6 +28,28 @@ UF_CODES = {11: "RO", 12: "AC", 13: "AM", 14: "RR", 15: "PA", 16: "AP", 17: "TO"
             51: "MT", 52: "GO", 53: "DF"}
 
 
+def ring_area(r):
+    return sum(r[i][0] * r[i + 1][1] - r[i + 1][0] * r[i][1] for i in range(len(r) - 1)) / 2
+
+
+def fix_islands(geom):
+    """The source writes some coastal municipalities (Rio de Janeiro, Vitória, Ilhabela...) as ONE
+    Polygon whose islands are extra rings with the SAME winding as the mainland. Read as holes they
+    make the whole shape vanish after simplifying, so rings that wind like the first one become
+    polygons of their own and only oppositely wound rings stay holes."""
+    if geom["type"] != "Polygon" or len(geom["coordinates"]) < 2:
+        return geom
+    rings = geom["coordinates"]
+    outer_sign = ring_area(rings[0]) > 0
+    polys = []
+    for r in rings:
+        if (ring_area(r) > 0) == outer_sign or not polys:
+            polys.append([r])
+        else:
+            polys[-1].append(r)
+    return {"type": "MultiPolygon", "coordinates": polys} if len(polys) > 1 else geom
+
+
 def run(args):
     subprocess.run(MAPSHAPER + args, check=True, stdout=subprocess.DEVNULL)
 
@@ -43,6 +65,7 @@ def main():
             with urllib.request.urlopen(SRC.format(code=code), timeout=120) as r:
                 data = json.load(r)
             for f in data["features"]:  # keep only what the site needs
+                f["geometry"] = fix_islands(f["geometry"])
                 f["properties"] = {"id": f["properties"]["id"], "name": f["properties"]["name"],
                                    "uf": uf}
             with open(raw, "w", encoding="utf-8") as fh:

@@ -13,10 +13,10 @@ export function Legend({ outros = true }) {
 }
 
 // Share of sections won in the 1st turn: colour + pattern (Flávio) + text label, never colour alone
-export function StackBar({ l, f, o, compact }) {
+export function StackBar({ l, f, o, compact, votes }) {
   const { L } = useLang();
   const n = l + f + o;
-  if (!n) return <div className={`bar ${compact ? 'compacta' : ''} bar-vazia`}>{L('sem seções', 'no sections')}</div>;
+  if (!n) return <div className={`bar ${compact ? 'compacta' : ''} bar-vazia`}>{votes ? L('sem votos', 'no votes') : L('sem seções', 'no sections')}</div>;
   // text inside a segment only when there is room for it; the full numbers are always in the tooltip
   const seg = (k, v, label) => {
     if (v <= 0) return null;
@@ -26,7 +26,7 @@ export function StackBar({ l, f, o, compact }) {
   };
   return (
     <div className={`bar ${compact ? 'compacta' : ''}`} role="img"
-      aria-label={L(`Lula ${fmtN(l)}, Flávio ${fmtN(f)}, outros ${fmtN(o)} de ${fmtN(n)} seções`, `Lula ${fmtN(l)}, Flávio ${fmtN(f)}, others ${fmtN(o)} of ${fmtN(n)} sections`)}>
+      aria-label={L(`Lula ${fmtN(l)}, Flávio ${fmtN(f)}, outros ${fmtN(o)} de ${fmtN(n)} ${votes ? 'votos' : 'seções'}`, `Lula ${fmtN(l)}, Flávio ${fmtN(f)}, others ${fmtN(o)} of ${fmtN(n)} ${votes ? 'votes' : 'sections'}`)}>
       {seg('lula', l, 'Lula')}{seg('flavio', f, 'Flávio')}{seg('outros', o, L('Outros', 'Others'))}
     </div>
   );

@@ -13,12 +13,15 @@ export function ramp(t, from, to) {
 // identifies a geometry set, so a layer is rebuilt whenever its data changes (react-leaflet ignores new `data`)
 const geoId = (geo) => `${geo.features.length}:${geo.features[0]?.properties?.id ?? geo.features[0]?.properties?.uf}`;
 
-function Fit({ geo }) {
+// the view follows the selection: the whole geometry, or the focused feature (selected municipality)
+function Fit({ geo, focus, keyOf }) {
   const map = useMap();
   useEffect(() => {
-    const b = L.geoJSON(geo).getBounds();
-    if (b.isValid()) map.fitBounds(b, { padding: [8, 8] });
-  }, [geo, map]);
+    const ft = focus ? geo.features.find((f) => keyOf(f) === focus) : null;
+    let b = ft ? L.geoJSON(ft).getBounds() : null;
+    if (!b || !b.isValid()) b = L.geoJSON(geo).getBounds();     // a municipality without an outline: show the state
+    if (b.isValid()) map.fitBounds(b, { padding: [8, 8], maxZoom: ft ? 11 : undefined });
+  }, [geo, focus, map]); // eslint-disable-line react-hooks/exhaustive-deps
   return null;
 }
 
@@ -78,7 +81,7 @@ function Labels({ geo, tagOf, version }) {
  * valueOf(feature) -> number | null ; color is a ramp from the panel colour to `hue`.
  * `version` must change whenever the values change (the layer is rebuilt when it does).
  */
-export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'accent', selected, onPick, themeKey, version, colorOf, tagOf }) {
+export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'accent', selected, focus, onPick, themeKey, version, colorOf, tagOf }) {
   const colors = useMemo(() => ({ lo: css('--panel2'), hi: css(`--${hue}`), none: css('--soft'), line: css('--line'), sel: css('--fg'), lula: css('--lula'), flavio: css('--flavio'), outros: css('--outros') }), [hue, themeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const style = (f) => {
     const v = valueOf(f);
@@ -95,7 +98,7 @@ export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'acce
   return (
     <MapContainer className="mapa" zoomSnap={0.25} attributionControl={false} scrollWheelZoom={false} minZoom={2} style={{ background: 'var(--soft)' }}>
       <GeoJSON key={`${geoId(geo)}|${version}|${selected}|${themeKey}`} data={geo} style={style} onEachFeature={each} />
-      <Fit geo={geo} />
+      <Fit geo={geo} focus={focus} keyOf={keyOf} />
       {tagOf && <Labels geo={geo} tagOf={tagOf} version={`${version}|${themeKey}`} />}
     </MapContainer>
   );
