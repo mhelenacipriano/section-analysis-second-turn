@@ -1,9 +1,10 @@
 name: tse-logs
 
+# Manual only. It used to run every 2 hours (cron "17 */2 * * *"); that schedule was removed
+# once the scan was done, because each scheduled run still starts 28 jobs. If a state is
+# incomplete (see state/complete_<UF>), start this workflow again by hand: it resumes.
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "17 */2 * * *"   # every 2 hours, at minute 17
 
 # one run at a time: a new run waits for the current one instead of cancelling it
 concurrency:
