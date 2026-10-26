@@ -170,6 +170,7 @@ export default function Overview({ data, f, setF, go, themeKey }) {
               { key: 'uf', label: L('UF', 'State'), get: (u) => u.mun.uf },
               { key: 'nome', label: L('Município', 'Municipality'), get: (u) => u.mun.nome },
               { key: 'n', label: L(`Seções ${T}+`, `Sections ${T}+`), num: true, get: (u) => u.n, render: (u) => fmtN(u.n) },
+              { key: 'p', label: L('% das seções do município', '% of the municipality’s sections'), num: true, get: (u) => u.n / u.mun.n, render: (u) => `${fmtPct(u.n / u.mun.n, 2)} (${fmtN(u.n)} ${L('de', 'of')} ${fmtN(u.mun.n)})`, csv: (u) => (u.n / u.mun.n).toFixed(5) },
               { key: 'wl', label: L('Lula venceu', 'Lula won'), num: true, get: (u) => u.wl, render: (u) => fmtN(u.wl) },
               { key: 'wf', label: L('Flávio venceu', 'Flávio won'), num: true, get: (u) => u.wf, render: (u) => fmtN(u.wf) },
             ]}

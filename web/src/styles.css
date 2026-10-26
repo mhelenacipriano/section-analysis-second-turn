@@ -187,3 +187,4 @@ td.empty { text-align: center; white-space: normal; }
 .sw.neu { background: var(--soft); border: 1px solid var(--line); }
 .story[id] { scroll-margin-top: 72px; }
 a.btn { text-decoration: none; }
+.rank li > span { text-align: right; font-variant-numeric: tabular-nums; } .rank li > span small { display: block; color: var(--muted); font-size: .76rem; }
