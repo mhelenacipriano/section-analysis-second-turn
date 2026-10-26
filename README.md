@@ -126,9 +126,25 @@ python scripts/build_site_data.py                                      # -> web/
 Run the site: `cd web && npm install && npm run dev` (or `npm run build` and serve `web/dist`).
 
 Only sections that have **both** a first-turn result and a closing time are analysed; the rest are listed per
-state on the Methodology page and never counted as "closed on time". Adding states = ingest the new zips,
-commit `data/t1/` and `data/tse_ibge.csv`; the `site` workflow rebuilds and publishes
-(Settings → Pages → Source: GitHub Actions). It also republishes when a `tse-encerramento` run finishes.
+state on the Methodology page and never counted as "closed on time".
+
+### Deploy on Vercel
+
+1. vercel.com/new → import this repository. Leave **Root Directory** empty and **Framework Preset** on *Other*:
+   `vercel.json` already sets the install command (`npm ci --prefix web`), the build command
+   (`npm run build --prefix web`) and the output directory (`web/dist`). No environment variables are needed.
+2. Production branch: `main`. Every push to `main` redeploys.
+
+The data the site reads (`web/public/data/*.json`) is **committed**, so the Vercel build needs no Python.
+`.github/workflows/site-data.yml` regenerates those files and commits them when a `tse-encerramento` run
+finishes or when `data/` or the builder change (the commit triggers the Vercel redeploy). To do it by hand:
+`python scripts/build_site_data.py`, then commit `web/public/data/`.
+
+Adding states: `python scripts/ingest_t1.py <zips>` (all parts of a state in one call),
+`python scripts/build_crosswalk.py`, commit `data/t1/` and `data/tse_ibge.csv`; the workflow does the rest.
+
+If Vercel's Hobby plan refuses a deployment because the commit author is the `github-actions[bot]` (private
+repositories), either redeploy from the Vercel dashboard or commit the refreshed data yourself.
 
 Known limits: the urna clock is converted by state (AC −2h, AM/RO/RR/MT/MS −1h); Fernando de Noronha is
 fixed by hand and Amazonas municipalities on Acre time are detected from their closing times. The closing
