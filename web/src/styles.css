@@ -207,3 +207,6 @@ a.btn { text-decoration: none; }
 .classes { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--fg2); }
 .classes span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .classes i { display: inline-block; width: 1.5rem; height: .9rem; border-radius: 3px; border: 1px solid var(--line); }
+.rank li > span small.quem { font-weight: 600; }
+.rank li > span small.quem.lula { color: var(--lula); }
+.rank li > span small.quem.flavio { color: var(--flavio); }

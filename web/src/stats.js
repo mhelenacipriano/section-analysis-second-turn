@@ -155,7 +155,7 @@ export function sweep(rows, thresholds) {
 // Per-state or per-municipality counts used by the map and the tables
 export function byUnit(data, lim, key) {
   const out = new Map();
-  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0 }).get(k);
+  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0, atVl: 0, atVf: 0, atVo: 0 }).get(k);
   const units = key === 'uf' ? (m) => m.uf : (m) => `${m.uf}:${m.cod}`;
   for (const m of data.mun) {
     const u = get(units(m), m);
@@ -168,7 +168,7 @@ export function byUnit(data, lim, key) {
     const u = out.get(units(d.mun));
     if (d.enc == null) continue;
     u.late++;
-    if (d.enc >= T) { u.atT++; if (d.v === LULA) u.atTl++; else if (d.v === FLAVIO) u.atTf++; }
+    if (d.enc >= T) { u.atT++; u.atVl += d.l; u.atVf += d.f; u.atVo += d.o; if (d.v === LULA) u.atTl++; else if (d.v === FLAVIO) u.atTf++; }
   }
   return out;
 }
@@ -218,3 +218,6 @@ export function missingScenario(early, p) {
     more: lossL === lossF ? 'empate' : lossL > lossF ? 'lula' : 'flavio',
   };
 }
+
+// who leads (most votes among Lula, Flávio and all others together): 'lula' | 'flavio' | 'outros'
+export const leader = (vl, vf, vo) => (vl > vf && vl > vo ? 'lula' : vf > vl && vf > vo ? 'flavio' : 'outros');
