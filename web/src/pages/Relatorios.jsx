@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import DataTable from '../components/DataTable.jsx';
 import { Filters } from '../components/Filters.jsx';
+import MissingVotesReport from '../components/MissingVotesReport.jsx';
 import Histogram from '../components/Histogram.jsx';
 import { Legend, Note, StackBar, Stat } from '../components/ui.jsx';
 import { useLang } from '../i18n.jsx';
@@ -44,20 +45,29 @@ function Varredura({ g, f, setF }) {
   );
 }
 
-function Horario({ g, f, setF }) {
+function Horario({ g, f, setF, data }) {
   const { L } = useLang();
   const [step, setStep] = useState(5);
   const bins = useMemo(() => histogram(g.rows, step), [g, step]);
   return (
     <>
-      <p className="story-intro">{L('Quando a urna confirmou o encerramento da votação, de 17h30 em diante. Clique numa barra para usar o horário como limiar.', 'When the urna confirmed the closing of voting, from 17:30 onwards. Click a bar to use that time as the threshold.')}</p>
-      <div className="chart-ctl">
-        <span className="note">{L('Largura das barras:', 'Bar width:')}</span>
-        {[5, 10, 15].map((s) => <button key={s} type="button" className={`chip ${step === s ? 'on' : ''}`} onClick={() => setStep(s)}>{s} min</button>)}
-      </div>
-      <Legend />
-      <Histogram bins={bins} lim={f.lim} onPick={(m) => setF({ lim: m })} />
-      {g.noRec.n > 0 && <Note>{L(`${fmtN(g.noRec.n)} seções não têm registro de encerramento no log e ficam fora do gráfico.`, `${fmtN(g.noRec.n)} sections have no closing record in the log and are left out of the chart.`)}</Note>}
+      <MissingVotesReport data={data} />
+      <section className="story" aria-labelledby="hc">
+        <h2 id="hc">{L('Quando as seções fecharam', 'When the sections closed')}</h2>
+        <p className="story-intro">
+          {L(
+            <>Cada barra mostra <strong>quantas seções</strong> fecharam naquele intervalo de tempo, de 17h30 em diante (as que fecharam antes são o caso normal e não aparecem). <span className="pos">Vermelho</span> = seções em que Lula venceu no 1º turno; <span className="neg">azul listrado</span> = Flávio Bolsonaro. A barra alta perto das 19h mostra onde o encerramento se concentrou. Clique numa barra para usar aquele horário.</>,
+            <>Each bar shows <strong>how many sections</strong> closed in that time window, from 17:30 onwards (those that closed earlier are the normal case and are not shown). <span className="pos">Red</span> = sections Lula won in the 1st round; <span className="neg">striped blue</span> = Flávio Bolsonaro. The tall bar near 7 pm shows where closing clustered. Click a bar to use that time.</>,
+          )}
+        </p>
+        <div className="chart-ctl">
+          <span className="note">{L('Largura das barras:', 'Bar width:')}</span>
+          {[5, 10, 15].map((s) => <button key={s} type="button" className={`chip ${step === s ? 'on' : ''}`} onClick={() => setStep(s)}>{s} min</button>)}
+        </div>
+        <Legend />
+        <Histogram bins={bins} lim={f.lim} onPick={(m) => setF({ lim: m })} />
+        {g.noRec.n > 0 && <Note>{L(`${fmtN(g.noRec.n)} seções não têm registro de encerramento no log e ficam fora do gráfico.`, `${fmtN(g.noRec.n)} sections have no closing record in the log and are left out of the chart.`)}</Note>}
+      </section>
     </>
   );
 }
@@ -146,7 +156,7 @@ export default function Relatorios({ data, f, setF, query, go }) {
       </div>
       <Filters data={data} f={f} setF={setF} limiar={r !== 'varredura'} />
       {r === 'varredura' && <Varredura g={g} f={f} setF={setF} />}
-      {r === 'horario' && <Horario g={g} f={f} setF={setF} />}
+      {r === 'horario' && <Horario g={g} f={f} setF={setF} data={data} />}
       {r === 'esperado' && <Esperado g={g} f={f} data={data} />}
       {r === 'alteradas' && <Alteradas data={data} f={f} go={go} />}
     </div>

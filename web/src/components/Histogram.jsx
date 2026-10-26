@@ -5,7 +5,7 @@ import { fmtHM, fmtN } from '../format.js';
 const W = 720, H = 300, M = { t: 14, r: 12, b: 38, l: 46 };
 
 /** Stacked by 1st-turn winner. Flávio uses a stripe pattern so colour is never the only cue. */
-export default function Histogram({ bins, lim, onPick, log: logInit = true }) {
+export default function Histogram({ bins, lim, onPick, log: logInit = false }) {
   const { L } = useLang();
   const [log, setLog] = useState(logInit);
   const [hover, setHover] = useState(null);
