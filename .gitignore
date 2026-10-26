@@ -6,4 +6,3 @@ __pycache__/
 debug_aux_*.json
 node_modules/
 web/dist/
-web/public/data/
