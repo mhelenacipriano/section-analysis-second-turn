@@ -6,12 +6,13 @@ import Explorar from './pages/Explorar.jsx';
 import Mapa from './pages/Mapa.jsx';
 import Metodologia from './pages/Metodologia.jsx';
 import Overview from './pages/Overview.jsx';
+import Pontuais from './pages/Pontuais.jsx';
 import Relatorios from './pages/Relatorios.jsx';
 import Secoes from './pages/Secoes.jsx';
 
-const NAV = [['/', 'Visão geral'], ['/mapa', 'Mapa'], ['/explorar', 'Explorar'], ['/secoes', 'Seções'], ['/relatorios', 'Relatórios'], ['/metodologia', 'Metodologia']];
+const NAV = [['/', 'Visão geral'], ['/mapa', 'Mapa'], ['/pontuais', 'Fecharam às 17h'], ['/explorar', 'Explorar'], ['/secoes', 'Seções'], ['/relatorios', 'Relatórios'], ['/metodologia', 'Metodologia']];
 const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc'];
-const PAGES = { '/': Overview, '/mapa': Mapa, '/explorar': Explorar, '/secoes': Secoes, '/relatorios': Relatorios, '/metodologia': Metodologia };
+const PAGES = { '/': Overview, '/mapa': Mapa, '/pontuais': Pontuais, '/explorar': Explorar, '/secoes': Secoes, '/relatorios': Relatorios, '/metodologia': Metodologia };
 
 // filters live in the URL (#/secoes?uf=SP&lim=1140) so any view can be shared
 const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc });

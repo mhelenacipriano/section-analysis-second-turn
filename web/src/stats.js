@@ -172,3 +172,22 @@ export function byUnit(data, lim, key) {
   }
   return out;
 }
+
+/**
+ * Per state: how many sections closed on time (before 17:30 Brasília: no detail row exists for them),
+ * and who won the state in the 1st turn (most valid votes). Sections without a closing record are
+ * neither on time nor late: they are left out of "on time" but stay in the denominator.
+ */
+export function onTimeByState(data) {
+  const st = new Map();
+  const get = (uf) => st.get(uf) || st.set(uf, { uf, total: zero(), rows: zero() }).get(uf);
+  for (const m of data.mun) addMun(get(m.uf).total, m);
+  for (const d of data.det) addSec(get(d.mun.uf).rows, d);     // closed at/after 17:30, or no record
+  return [...st.values()].filter((x) => x.total.n).map(({ uf, total: t, rows }) => {
+    const on = sub(t, rows);
+    const valid = t.vl + t.vf + t.vo;
+    const winner = t.vl > t.vf && t.vl > t.vo ? 'lula' : t.vf > t.vl && t.vf > t.vo ? 'flavio' : 'outros';
+    return { uf, n: t.n, on, late: rows.n, pct: on.n / t.n, winner, lulaShare: valid ? t.vl / valid : null,
+      flavioShare: valid ? t.vf / valid : null, valid };
+  });
+}

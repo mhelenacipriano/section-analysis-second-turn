@@ -105,7 +105,7 @@ without a late vote, so a second scan reads the closing sequence of each urna lo
 ## Dashboard (`web/`)
 
 React + Vite single-page site (hash routes, filters kept in the URL): overview, map (state → municipality),
-explore (states/municipalities), sections table, reports (threshold sweep, closing-time histogram,
+"Fecharam às 17h" (states ranked by share of sections closed on time, with the first-turn winner of each state; map coloured red/blue by winner and labelled with the percentage), explore (states/municipalities), sections table, reports (threshold sweep, closing-time histogram,
 expected × observed within each municipality, changed polling places) and methodology. Everything is
 filterable by state, municipality, closing-time threshold (default 19:00 Brasília), first-turn winner and
 "polling place changed"; tables export CSV.

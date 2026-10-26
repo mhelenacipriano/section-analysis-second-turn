@@ -163,3 +163,18 @@ td.empty { text-align: center; white-space: normal; }
 .vr.on { border-color: var(--red-solid); background: var(--panel2); }
 .vr-t { font-weight: 600; } .vr-n, .vr-ci { color: var(--muted); font-size: .86rem; }
 @media (max-width: 760px) { .vr { grid-template-columns: 1fr 1fr; } .vr-b { grid-column: 1 / -1; } }
+
+/* ---------- State labels on the map and the on-time ranking ---------- */
+.uf-tag { display: flex; align-items: center; justify-content: center; text-align: center; background: rgba(0, 0, 0, .68); color: #fff; border-radius: 8px; font-size: 11px; line-height: 1.15; font-weight: 600; pointer-events: none; white-space: nowrap; }
+.uf-tag b { font-size: 12px; font-weight: 800; }
+.rank-bars { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.rank-bars li { display: grid; grid-template-columns: 36px minmax(0, 1fr) 110px; gap: 10px; align-items: center; }
+.rb-uf { font-weight: 700; } .rb-n { color: var(--muted); font-size: .82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.rb-track { display: block; height: 34px; background: var(--soft); border-radius: 8px; overflow: hidden; }
+.rb-fill { display: flex; align-items: center; height: 100%; padding: 0 10px; font-size: .84rem; white-space: nowrap; overflow: hidden; font-variant-numeric: tabular-nums; }
+.rb-fill.lula { background: var(--lula); color: var(--on-lula); font-weight: 600; }
+.rb-fill.flavio { background: repeating-linear-gradient(135deg, var(--flavio) 0 6px, color-mix(in srgb, var(--flavio) 55%, #000) 6px 9px); color: #fff; text-shadow: 0 0 3px #000, 0 0 6px #000; font-weight: 600; }
+.rb-fill.outros { background: var(--outros); color: var(--fg); }
+.rb-fill b { margin-right: 4px; }
+@media (max-width: 560px) { .rank-bars li { grid-template-columns: 30px minmax(0, 1fr); } .rb-n { display: none; } }
+.sw.neu { background: var(--soft); border: 1px solid var(--line); }
