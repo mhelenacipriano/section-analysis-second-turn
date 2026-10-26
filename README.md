@@ -130,9 +130,9 @@ state on the Methodology page and never counted as "closed on time".
 
 ### Deploy on Vercel
 
-1. vercel.com/new → import this repository. Leave **Root Directory** empty and **Framework Preset** on *Other*:
-   `vercel.json` already sets the install command (`npm ci --prefix web`), the build command
-   (`npm run build --prefix web`) and the output directory (`web/dist`). No environment variables are needed.
+1. vercel.com/new → import this repository, then set **Root Directory** to `web` (Edit → choose the `web` folder).
+   Framework Preset: *Vite* (detected automatically). `web/vercel.json` sets install (`npm ci`), build
+   (`npm run build`) and output (`dist`); leave the overrides off. No environment variables are needed.
 2. Production branch: `main`. Every push to `main` redeploys.
 
 The data the site reads (`web/public/data/*.json`) is **committed**, so the Vercel build needs no Python.
