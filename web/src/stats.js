@@ -155,3 +155,24 @@ export function pesoTardio(data, lim, scope = '', cedo = false) {
     all: make({ ...base, n: base.sections, va: base.va0 + base.vaDet }, t2),
   };
 }
+
+/**
+ * Cumulative view by time: for each time, how many urnas had already closed (confirmed closing before it)
+ * and the total votes cast until then, against the official total of the scope ('' = Brazil, 'RJ' = a state).
+ * Votes until T = official total - votes at/after T (every vote after 17:30 is in a late-closing urna).
+ */
+export function ateHorario(data, scope = '') {
+  const t2 = data.t2[scope || 'BR'];
+  const cuts = Object.keys(VB_KEY).map(Number);
+  let sections = 0, nDet = 0;
+  const closed = Object.fromEntries(cuts.map((c) => [c, 0]));
+  const after = Object.fromEntries(cuts.map((c) => [c, 0]));
+  for (const m of data.mun) if (!scope || m.uf === scope) sections += m.n;
+  for (const d of data.det) {
+    if (scope && d.mun.uf !== scope) continue;
+    nDet++;
+    for (const c of cuts) { if (d.enc != null && d.enc < c * 60) closed[c]++; after[c] += d[VB_KEY[c]] || 0; }
+  }
+  const row = (c, n, until) => ({ c, n, pctSections: sections ? n / sections : 0, until, pctVotes: until / t2.comparecimento });
+  return { total: row(null, sections, t2.comparecimento), rows: cuts.map((c) => row(c, sections - nDet + closed[c], t2.comparecimento - after[c])) };
+}
