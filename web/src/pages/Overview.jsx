@@ -95,7 +95,7 @@ function ResumoInner({ data, f, setF, go }) {
             </div>
           </section>
 
-          <section aria-label={L('Três perspectivas', 'Three perspectives')}>
+          <section aria-label={L('Duas perspectivas', 'Two perspectives')}>
             <div className="pcards">
               <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={fmtPct(s.pctSections, 2)}
                 bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
@@ -104,10 +104,6 @@ function ResumoInner({ data, f, setF, go }) {
               <Card n="2" kicker={L('Dos votos do 2º turno', 'Of the 2nd-round votes')} big={fmtPct(s.pctInGroup, 2)}
                 bigSub={L(`${fmtN(s.inGroup)} de ${fmtN(s.votes)} votos`, `${fmtN(s.inGroup)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctInGroup} />}>
                 {L('Quase todos os votos foram dados em urnas que fecharam no horário.', 'Almost all the votes were cast in urnas that closed on time.')}
-              </Card>
-              <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
-                bigSub={L(`${fmtN(s.va)} votos de uma vantagem total de ${fmtN(s.gap)}`, `${fmtN(s.va)} votes out of a total margin of ${fmtN(s.gap)}`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
-                {L('Votos dados depois das 17h, por quem já estava na fila, nessas urnas.', 'Votes cast after 5 pm, by people already in line, in these urnas.')}
               </Card>
             </div>
           </section>
