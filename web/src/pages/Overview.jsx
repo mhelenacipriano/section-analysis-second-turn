@@ -39,7 +39,6 @@ function ResumoInner({ data, f, setF, go }) {
   const W = winnerName(s.winner);
   const oneIn = s.pctVotes ? Math.round(1 / s.pctVotes) : null;
   const left = s.gap - s.va;
-  const shareEarlyVa = all.va ? early.va / all.va : 0;
   const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
 
   // every row is a share of the same totals: early + 17:30-or-later = all urnas; the cut-offs below are parts of "17:30 or later"
@@ -106,11 +105,9 @@ function ResumoInner({ data, f, setF, go }) {
                 bigSub={L(`${fmtN(s.inGroup)} de ${fmtN(s.votes)} votos`, `${fmtN(s.inGroup)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctInGroup} />}>
                 {L('Quase todos os votos foram dados em urnas que fecharam no horário.', 'Almost all the votes were cast in urnas that closed on time.')}
               </Card>
-              <Card n="3" kicker={L('Dos votos depois das 17h', 'Of the votes after 5 pm')} big={fmtPct(shareEarlyVa, 0)}
-                bigSub={L(`${fmtN(early.va)} de ${fmtN(all.va)} votos`, `${fmtN(early.va)} of ${fmtN(all.va)} votes`)} meter={<Meter share={shareEarlyVa} />}>
-                {shareEarlyVa > 0.5
-                  ? L('A maioria dos votos depois das 17h foi dada nessas urnas, por quem já estava na fila às 17h.', 'Most of the votes after 5 pm were cast in these urnas, by people already in line at 5 pm.')
-                  : L('Parte dos votos depois das 17h foi dada nessas urnas, por quem já estava na fila às 17h.', 'Part of the votes after 5 pm were cast in these urnas, by people already in line at 5 pm.')}
+              <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
+                bigSub={L(`${fmtN(s.va)} votos de uma vantagem total de ${fmtN(s.gap)}`, `${fmtN(s.va)} votes out of a total margin of ${fmtN(s.gap)}`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
+                {L('Votos dados depois das 17h, por quem já estava na fila, nessas urnas.', 'Votes cast after 5 pm, by people already in line, in these urnas.')}
               </Card>
             </div>
           </section>
