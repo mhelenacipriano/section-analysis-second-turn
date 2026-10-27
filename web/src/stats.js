@@ -75,7 +75,7 @@ export function groups(data, f) {
 // Per-state or per-municipality counts used by the map and the tables
 export function byUnit(data, lim, key, alt = false) {
   const out = new Map();
-  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0, atVl: 0, atVf: 0, atVo: 0, wl: 0, wf: 0, wo: 0, vl: 0, vf: 0, vo: 0, vb: 0, vn: 0, ap: 0, cp: 0 }).get(k);
+  const get = (k, m) => out.get(k) || out.set(k, { key: k, uf: m.uf, mun: m, n: 0, late: 0, atT: 0, atTl: 0, atTf: 0, atVl: 0, atVf: 0, atVo: 0, eT: 0, eVl: 0, eVf: 0, eVo: 0, dn: 0, dVl: 0, dVf: 0, dVo: 0, wl: 0, wf: 0, wo: 0, vl: 0, vf: 0, vo: 0, vb: 0, vn: 0, ap: 0, cp: 0 }).get(k);
   const units = key === 'uf' ? (m) => m.uf : (m) => `${m.uf}:${m.cod}`;
   const T = lim * 60;
   const late = (u, d) => {
@@ -90,6 +90,7 @@ export function byUnit(data, lim, key, alt = false) {
       if (key !== 'uf') u.mun = r.mun;
       addSec(u, r);
       late(u, r);
+      if (r.enc != null && r.enc < RECORD_FROM) { u.eT++; u.eVl += r.l; u.eVf += r.f; u.eVo += r.o; }   // closed before 17:30
     }
     return out;
   }
@@ -99,7 +100,12 @@ export function byUnit(data, lim, key, alt = false) {
     u.n += m.n; u.wl += m.wl; u.wf += m.wf; u.wo += m.wo;
     u.vl += m.vl; u.vf += m.vf; u.vo += m.vo;
   }
-  for (const d of data.det) late(out.get(units(d.mun)), d);
+  for (const d of data.det) {
+    const u = out.get(units(d.mun));
+    late(u, d);
+    u.dn++; u.dVl += d.l; u.dVf += d.f; u.dVo += d.o;     // every section with a detail row closed at/after 17:30 or has no record
+  }
+  for (const u of out.values()) { u.eT = u.n - u.dn; u.eVl = u.vl - u.dVl; u.eVf = u.vf - u.dVf; u.eVo = u.vo - u.dVo; }   // the others closed before 17:30
   return out;
 }
 

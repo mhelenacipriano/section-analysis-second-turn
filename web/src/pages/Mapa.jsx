@@ -5,7 +5,7 @@ import { Note, StackBar, Stat } from '../components/ui.jsx';
 import { loadGeo } from '../data.js';
 import { useLang } from '../i18n.jsx';
 import { fmtHM, fmtN, fmtPct } from '../format.js';
-import { byUnit, groups, leader } from '../stats.js';
+import { LIM_MIN, byUnit, groups, leader } from '../stats.js';
 
 // View 1 colours by the share of each place's sections that closed at/after the chosen time, whoever won.
 // Five quantile classes (about the same number of places in each) so RJ/SP do not wash out everyone else;
@@ -41,7 +41,10 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
   const [loaded, setLoaded] = useState(null);          // { file, data }
   const [err, setErr] = useState(null);
   const level = f.uf ? 'mun' : 'uf';
+  const cedo = !!f.cedo;                       // only the sections that closed before 17:30
   const T = fmtHM(f.lim);
+  const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
+  const whenShort = cedo ? '< 17:30' : `${T}+`;
   const W = (k) => winnerName(k, L);
   // only ever draw geometry that belongs to the current level: a stale one (the previous
   // state's municipalities) must never reach the map while the new file is loading
@@ -58,18 +61,19 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
   const unitOf = (feat) => units.get(level === 'uf' ? feat.properties.uf : `${f.uf}:${data.codeByIbge.get(feat.properties.id) ?? ''}`);
 
   // who won there: the sections closed at/after T put together (their votes added up), or the whole place
+  const cnt = (u) => (cedo ? u.eT : u.atT);
   const stat = (u) => {
-    if (!u || !u.atT) return null;
-    const [vl, vf, vo] = quem === 'secoes' ? [u.atVl, u.atVf, u.atVo] : [u.vl, u.vf, u.vo];
+    if (!u || !cnt(u)) return null;
+    const [vl, vf, vo] = quem === 'secoes' ? (cedo ? [u.eVl, u.eVf, u.eVo] : [u.atVl, u.atVf, u.atVo]) : [u.vl, u.vf, u.vo];
     const valid = vl + vf + vo;
     return { winner: leader(vl, vf), vl, vf, l: valid ? vl / valid : 0, fl: valid ? vf / valid : 0 };
   };
-  const valueOf = (feat) => { const u = unitOf(feat); return u && u.n ? u.atT / u.n : null; };
+  const valueOf = (feat) => { const u = unitOf(feat); return u && u.n ? cnt(u) / u.n : null; };
   const scale = useMemo(() => {
     const vals = [];
-    for (const u of units.values()) if (u.n && (level === 'uf' || u.uf === f.uf)) vals.push(u.atT / u.n);
+    for (const u of units.values()) if (u.n && (level === 'uf' || u.uf === f.uf)) vals.push(cnt(u) / u.n);
     return { ...classify(vals), hasZero: vals.some((x) => x <= 0) };
-  }, [units, level, f.uf]);
+  }, [units, level, f.uf, cedo]); // eslint-disable-line react-hooks/exhaustive-deps
   const colorOf = (feat, c) => {
     if (vista === 'pct') {
       const v = valueOf(feat);
@@ -89,12 +93,12 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
     const name = level === 'uf' ? feat.properties.uf : feat.properties.name;
     const s = stat(u);
     if (!u || !u.n) return `${name}: ${L('sem dados', 'no data')}`;
-    if (vista === 'pct') return `${name}: ${fmtPct(u.atT / u.n, 2)} · ${fmtN(u.atT)} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções encerradas às', 'sections closed at')} ${T}${L(' ou depois', ' or later')}`;
-    if (!s) return `${name}: ${L(`nenhuma seção encerrada às ${T} ou depois`, `no section closed at ${T} or later`)}`;
-    return `${name}: ${fmtN(u.atT)} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções', 'sections')} (${fmtPct(u.atT / u.n, 2)}) · ${L('votos no 1º turno', '1st-round votes')}: Lula ${fmtN(s.vl)} (${fmtPct(s.l)}) × Flávio ${fmtN(s.vf)} (${fmtPct(s.fl)}) → ${W(s.winner)}`;
+    if (vista === 'pct') return `${name}: ${fmtPct(cnt(u) / u.n, 2)} · ${fmtN(cnt(u))} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções encerradas', 'sections closed')} ${when}`;
+    if (!s) return `${name}: ${L(`nenhuma seção encerrada ${when}`, `no section closed ${when}`)}`;
+    return `${name}: ${fmtN(cnt(u))} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções', 'sections')} (${fmtPct(cnt(u) / u.n, 2)}) · ${L('votos no 1º turno', '1st-round votes')}: Lula ${fmtN(s.vl)} (${fmtPct(s.l)}) × Flávio ${fmtN(s.vf)} (${fmtPct(s.fl)}) → ${W(s.winner)}`;
   };
   const tagOf = level === 'uf'
-    ? (feat) => { const u = unitOf(feat); return u && u.n && (u.atT || vista === 'pct') ? { a: feat.properties.uf, b: fmtPct(u.atT / u.n, 1) } : null; }
+    ? (feat) => { const u = unitOf(feat); return u && u.n && (cnt(u) || vista === 'pct') ? { a: feat.properties.uf, b: fmtPct(cnt(u) / u.n, 1) } : null; }
     : undefined;
   const keyOf = (feat) => (level === 'uf' ? feat.properties.uf : feat.properties.id);
   const onPick = (key) => {
@@ -104,9 +108,12 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
   const selected = f.mun ? data.mun.find((m) => m.uf === f.uf && m.cod === f.mun)?.ibge : f.uf || null;
 
   const g = useMemo(() => groups(data, f), [data, f]);
-  const ranking = useMemo(() => [...units.values()].filter((u) => u.atT && (level === 'uf' || (u.uf === f.uf && (f.alt || u.n >= MIN_SECTIONS))))
-    .map((u) => ({ u, p: u.atT / u.n, s: stat(u) })).sort((a, b) => b.p - a.p).slice(0, 10), [units, level, f.uf, f.alt, quem]); // eslint-disable-line react-hooks/exhaustive-deps
-  const withSections = useMemo(() => [...units.values()].filter((u) => u.atT && (level === 'uf' || u.uf === f.uf)), [units, level, f.uf]);
+  // the group on the map and everybody else, for the sidebar: closed at/after T, or before 17:30
+  const sel = useMemo(() => (cedo ? groups(data, { ...f, lim: LIM_MIN }).onTime : g.atT), [data, f, g, cedo]);
+  const others = useMemo(() => ({ vl: g.total.vl - sel.vl, vf: g.total.vf - sel.vf, vo: g.total.vo - sel.vo }), [g, sel]);
+  const ranking = useMemo(() => [...units.values()].filter((u) => cnt(u) && (level === 'uf' || (u.uf === f.uf && (f.alt || u.n >= MIN_SECTIONS))))
+    .map((u) => ({ u, p: cnt(u) / u.n, s: stat(u) })).sort((a, b) => b.p - a.p).slice(0, 10), [units, level, f.uf, f.alt, quem, cedo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const withSections = useMemo(() => [...units.values()].filter((u) => cnt(u) && (level === 'uf' || u.uf === f.uf)), [units, level, f.uf, cedo]); // eslint-disable-line react-hooks/exhaustive-deps
   const redN = withSections.filter((u) => stat(u)?.winner === 'lula').length;
   const blueN = withSections.filter((u) => stat(u)?.winner === 'flavio').length;
   const noPolygon = f.uf ? data.mun.filter((m) => m.uf === f.uf && !m.ibge).length : 0;
@@ -117,13 +124,13 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
       <h1 className="page-title">{L('Mapa', 'Map')}</h1>
       <p className="sub">
         {vista === 'pct'
-          ? L(`Quanto mais escuro, maior a % das seções do lugar que fecharam às ${T} ou depois.`, `The darker, the larger the share of the place’s sections that closed at ${T} or later.`)
+          ? L(`Quanto mais escuro, maior a % das seções do lugar que fecharam ${when}.`, `The darker, the larger the share of the place’s sections that closed ${when}.`)
           : L('Vermelho: Lula teve mais votos no 1º turno. Azul: Flávio.', 'Red: Lula had more 1st-round votes. Blue: Flávio.')}
       </p>
-      <Filters data={data} f={f} setF={setF} />
+      <Filters data={data} f={f} setF={setF} cedo />
 
       <div className="subnav" role="group" aria-label={L('Vista do mapa', 'Map view')}>
-        {[['pct', L(`1. Onde mais seções fecharam às ${T}+ (%)`, `1. Where the most sections closed at ${T}+ (%)`)], ['vencedor', L('2. Quem venceu no 1º turno (vermelho/azul)', '2. Who won the 1st round (red/blue)')]].map(([k, label]) => (
+        {[['pct', L(`1. Onde mais seções fecharam ${cedo ? 'no horário' : `às ${T}+`} (%)`, `1. Where the most sections closed ${cedo ? 'on time' : `at ${T}+`} (%)`)], ['vencedor', L('2. Quem venceu no 1º turno (vermelho/azul)', '2. Who won the 1st round (red/blue)')]].map(([k, label]) => (
           <button key={k} type="button" aria-current={vista === k ? 'page' : undefined} onClick={() => go(undefined, { ...query, vista: k === 'pct' ? '' : k })}>{label}</button>
         ))}
       </div>
@@ -131,14 +138,14 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
       {vista === 'vencedor' && (
         <>
           <div className="subnav" role="group" aria-label={L('Quem venceu', 'Who won')}>
-            {[['secoes', L(`Quem venceu nas seções encerradas às ${T}+ (somadas)`, `Who won the sections closed at ${T}+ (added together)`)], ['estado', f.uf ? L('Quem venceu no município inteiro', 'Who won the whole municipality') : L('Quem venceu no estado inteiro', 'Who won the whole state')]].map(([k, label]) => (
+            {[['secoes', L(`Quem venceu nas seções encerradas ${when} (somadas)`, `Who won the sections closed ${when} (added together)`)], ['estado', f.uf ? L('Quem venceu no município inteiro', 'Who won the whole municipality') : L('Quem venceu no estado inteiro', 'Who won the whole state')]].map(([k, label]) => (
               <button key={k} type="button" aria-current={quem === k ? 'page' : undefined} onClick={() => go(undefined, { ...query, quem: k })}>{label}</button>
             ))}
           </div>
           <div className="legend" aria-label={L('Legenda do mapa', 'Map legend')}>
             <span><i className="sw lula" />{L('Lula teve mais votos no 1º turno', 'Lula had more 1st-round votes')}</span>
             <span><i className="sw flavio" />{L('Flávio teve mais votos no 1º turno', 'Flávio had more 1st-round votes')}</span>
-            <span><i className="sw neu" />{L(`nenhuma seção encerrada às ${T}+`, `no section closed at ${T}+`)}</span>
+            <span><i className="sw neu" />{L(`nenhuma seção encerrada ${when}`, `no section closed ${when}`)}</span>
           </div>
         </>
       )}
@@ -148,7 +155,7 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
           {err && <p className="empty">{L('Não foi possível carregar o mapa', 'Could not load the map')} ({String(err.message || err)}).</p>}
           {!geo && !err && <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
           {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} colorOf={colorOf} tagOf={tagOf} max={1} selected={selected} focus={f.mun ? selected : null}
-            onPick={onPick} themeKey={themeKey} plain={level === 'uf'} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
+            onPick={onPick} themeKey={themeKey} plain={level === 'uf'} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${cedo}|${f.alt}|${lang}`} />}
           {level === 'uf' && <p className="hint">{L('Clique num estado para ver os municípios.', 'Click a state to see its municipalities.')}</p>}
           {vista === 'pct' && (
             <div className="escala" role="img" aria-label={L('Legenda das cores, de menos a mais seções', 'Colour legend, from fewer to more sections')}>
@@ -162,22 +169,22 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
         </div>
         <aside className="mapa-lado">
           <h2>{f.mun ? data.mun.find((m) => m.uf === f.uf && m.cod === f.mun)?.nome : f.uf || L('Brasil', 'Brazil')}</h2>
-          <Stat k={L(`Encerradas às ${T} ou depois`, `Closed at ${T} or later`)} v={fmtN(g.atT.n)} sub={L(`de ${fmtN(g.total.n)} seções`, `of ${fmtN(g.total.n)} sections`)} />
+          <Stat k={L(`Encerradas ${when}`, `Closed ${when}`)} v={fmtN(sel.n)} sub={L(`de ${fmtN(g.total.n)} seções`, `of ${fmtN(g.total.n)} sections`)} />
           {vista === 'vencedor' && (
             <>
-              <Stat k={L(`${unitWord[0].toUpperCase()}${unitWord.slice(1)} com seções às ${T}+`, `${unitWord[0].toUpperCase()}${unitWord.slice(1)} with sections at ${T}+`)} v={`${fmtN(withSections.length)}`} sub={L(`vermelho (Lula): ${fmtN(redN)} · azul (Flávio): ${fmtN(blueN)}`, `red (Lula): ${fmtN(redN)} · blue (Flávio): ${fmtN(blueN)}`)} />
-              <p className="note">{L(`Votos no 1º turno nas seções encerradas às ${T}+:`, `1st-round votes in the sections closed at ${T}+:`)}</p>
-              <StackBar l={g.atT.vl} f={g.atT.vf} o={g.atT.vo} compact votes />
+              <Stat k={L(`${unitWord[0].toUpperCase()}${unitWord.slice(1)} com seções ${cedo ? 'no horário' : `às ${T}+`}`, `${unitWord[0].toUpperCase()}${unitWord.slice(1)} with sections ${cedo ? 'on time' : `at ${T}+`}`)} v={`${fmtN(withSections.length)}`} sub={L(`vermelho (Lula): ${fmtN(redN)} · azul (Flávio): ${fmtN(blueN)}`, `red (Lula): ${fmtN(redN)} · blue (Flávio): ${fmtN(blueN)}`)} />
+              <p className="note">{L(`Votos no 1º turno nas seções encerradas ${when}:`, `1st-round votes in the sections closed ${when}:`)}</p>
+              <StackBar l={sel.vl} f={sel.vf} o={sel.vo} compact votes />
               <p className="note">{L('Votos no 1º turno em todas as outras seções:', '1st-round votes in all the other sections:')}</p>
-              <StackBar l={g.rest.vl} f={g.rest.vf} o={g.rest.vo} compact votes />
+              <StackBar l={others.vl} f={others.vf} o={others.vo} compact votes />
             </>
           )}
-          <h3>{L(`Maior % de seções encerradas às ${T}+`, `Highest % of sections closed at ${T}+`)}</h3>
+          <h3>{L(`Maior % de seções encerradas ${when}`, `Highest % of sections closed ${when}`)}</h3>
           <ol className="rank">
             {ranking.map(({ u, p, s }) => (
               <li key={u.key}>
                 <button type="button" className="linklike" onClick={() => (level === 'uf' ? setF({ uf: u.uf, mun: '' }) : setF({ mun: u.mun.cod }))}>{level === 'uf' ? u.uf : u.mun.nome}</button>
-                <span>{fmtPct(p, 2)}<small>{fmtN(u.atT)} {L('de', 'of')} {fmtN(u.n)} {L('seções', 'sections')}</small>{vista === 'vencedor' && <small className={`quem ${s.winner}`}>{W(s.winner)}</small>}</span>
+                <span>{fmtPct(p, 2)}<small>{fmtN(cnt(u))} {L('de', 'of')} {fmtN(u.n)} {L('seções', 'sections')}</small>{vista === 'vencedor' && <small className={`quem ${s.winner}`}>{W(s.winner)}</small>}</span>
               </li>
             ))}
           </ol>
