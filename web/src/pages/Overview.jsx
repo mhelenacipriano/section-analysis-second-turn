@@ -39,6 +39,7 @@ function ResumoInner({ data, f, setF, go }) {
   const W = winnerName(s.winner);
   const oneIn = s.pctVotes ? Math.round(1 / s.pctVotes) : null;
   const left = s.gap - s.va;
+  const shareEarlyVa = all.va ? early.va / all.va : 0;
   const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
 
   // every row is a share of the same totals: early + 17:30-or-later = all urnas; the cut-offs below are parts of "17:30 or later"
@@ -79,43 +80,76 @@ function ResumoInner({ data, f, setF, go }) {
 
       <Filters data={data} f={f} setF={setF} basico cedo />
 
-      <section className={`peso-veredito ${s.winner}`} role="status" aria-label={L('Resumo', 'Summary')}>
-        <p className="pv-lead">
-          {L(
-            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam {when}. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17h.</>,
-            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed {when}. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5 pm.</>,
-          )}
-        </p>
-        <div className="pv-nums">
-          <div><span className="pv-big">{pct(s.pctVotes)}</span><span className="pv-cap">{L('de todos os votos do 2º turno', 'of all 2nd-round votes')}</span></div>
-          <div><span className="pv-big">{pct(s.pctGap)}</span><span className="pv-cap">{L(`da vantagem de ${W}`, `of ${W}’s margin`)}</span></div>
-        </div>
-      </section>
+      {cedo ? (
+        <>
+          <section className="peso-veredito normal" role="status" aria-label={L('Resumo', 'Summary')}>
+            <span className="selo">{L('✓ Fecharam no horário normal', '✓ Closed at the normal time')}</span>
+            <p className="pv-lead">
+              {L(
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam no horário, antes das 17:30. Elas reuniram <strong>{fmtN(s.inGroup)} votos</strong>, quase todos os votos do 2º turno. Só <strong>{fmtN(s.va)}</strong> foram dados depois das 17h, por eleitores que já estavam na fila.</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed on time, before 17:30. They held <strong>{fmtN(s.inGroup)} votes</strong>, almost all the votes of the 2nd round. Only <strong>{fmtN(s.va)}</strong> were cast after 5 pm, by voters already in line.</>,
+              )}
+            </p>
+            <div className="pv-nums">
+              <div><span className="pv-big">{fmtPct(s.pctSections, 2)}</span><span className="pv-cap">{L('das urnas', 'of the urnas')}</span></div>
+              <div><span className="pv-big">{fmtPct(s.pctInGroup, 2)}</span><span className="pv-cap">{L('de todos os votos do 2º turno', 'of all 2nd-round votes')}</span></div>
+            </div>
+          </section>
 
-      <section aria-label={L('Três perspectivas', 'Three perspectives')}>
-        <div className="pcards">
-          <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={pct(s.pctSections)}
-            bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
-            {cedo ? L('A grande maioria das urnas fechou no horário normal.', 'Most urnas closed at the normal time.') : L('Quase todas fecharam no horário normal.', 'Almost all closed at the normal time.')}
-          </Card>
-          <Card n="2" kicker={L('Dos votos', 'Of the votes')} big={pct(s.pctVotes)}
-            bigSub={L(`${fmtN(s.va)} de ${fmtN(s.votes)} votos`, `${fmtN(s.va)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctVotes} />}>
-            {oneIn ? L(`1 voto em cada ${fmtN(oneIn)}.`, `1 vote in every ${fmtN(oneIn)}.`) : '–'}
-          </Card>
-          <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
-            bigSub={L(`vantagem total de ${fmtN(s.gap)} votos`, `total margin of ${fmtN(s.gap)} votes`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
-            {cedo
-              ? (all.va ? (early.va / all.va > 0.5
-                ? L(`São a maioria dos votos depois das 17h: ${fmtPct(early.va / all.va, 0)} (${fmtN(early.va)} de ${fmtN(all.va)}) foram dados em urnas que fecharam no horário normal.`,
-                  `They are the majority of the votes after 5 pm: ${fmtPct(early.va / all.va, 0)} (${fmtN(early.va)} of ${fmtN(all.va)}) were cast in urnas that closed at the normal time.`)
-                : L(`São ${fmtPct(early.va / all.va, 0)} dos votos depois das 17h (${fmtN(early.va)} de ${fmtN(all.va)}); o resto foi dado em urnas que fecharam tarde.`,
-                  `They are ${fmtPct(early.va / all.va, 0)} of the votes after 5 pm (${fmtN(early.va)} of ${fmtN(all.va)}); the rest was cast in urnas that closed late.`)) : '–')
-              : left > 0
-                ? L(`Sem esses votos, a vantagem ainda seria de ${fmtN(left)}.`, `Without these votes, the margin would still be ${fmtN(left)}.`)
-                : L(`Esses votos são maiores que a vantagem de ${W}.`, `These votes are larger than ${W}’s margin.`)}
-          </Card>
-        </div>
-      </section>
+          <section aria-label={L('Três perspectivas', 'Three perspectives')}>
+            <div className="pcards">
+              <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={fmtPct(s.pctSections, 2)}
+                bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
+                {L('Fecharam no horário normal, antes das 17:30.', 'Closed at the normal time, before 17:30.')}
+              </Card>
+              <Card n="2" kicker={L('Dos votos do 2º turno', 'Of the 2nd-round votes')} big={fmtPct(s.pctInGroup, 2)}
+                bigSub={L(`${fmtN(s.inGroup)} de ${fmtN(s.votes)} votos`, `${fmtN(s.inGroup)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctInGroup} />}>
+                {L('Quase todos os votos foram dados em urnas que fecharam no horário.', 'Almost all the votes were cast in urnas that closed on time.')}
+              </Card>
+              <Card n="3" kicker={L('Dos votos depois das 17h', 'Of the votes after 5 pm')} big={fmtPct(shareEarlyVa, 0)}
+                bigSub={L(`${fmtN(early.va)} de ${fmtN(all.va)} votos`, `${fmtN(early.va)} of ${fmtN(all.va)} votes`)} meter={<Meter share={shareEarlyVa} />}>
+                {shareEarlyVa > 0.5
+                  ? L('A maioria dos votos depois das 17h foi dada nessas urnas, por quem já estava na fila às 17h.', 'Most of the votes after 5 pm were cast in these urnas, by people already in line at 5 pm.')
+                  : L('Parte dos votos depois das 17h foi dada nessas urnas, por quem já estava na fila às 17h.', 'Part of the votes after 5 pm were cast in these urnas, by people already in line at 5 pm.')}
+              </Card>
+            </div>
+          </section>
+        </>
+      ) : (
+        <>
+          <section className={`peso-veredito ${s.winner}`} role="status" aria-label={L('Resumo', 'Summary')}>
+            <p className="pv-lead">
+              {L(
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam {when}. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17h.</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed {when}. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5 pm.</>,
+              )}
+            </p>
+            <div className="pv-nums">
+              <div><span className="pv-big">{pct(s.pctVotes)}</span><span className="pv-cap">{L('de todos os votos do 2º turno', 'of all 2nd-round votes')}</span></div>
+              <div><span className="pv-big">{pct(s.pctGap)}</span><span className="pv-cap">{L(`da vantagem de ${W}`, `of ${W}’s margin`)}</span></div>
+            </div>
+          </section>
+
+          <section aria-label={L('Três perspectivas', 'Three perspectives')}>
+            <div className="pcards">
+              <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={pct(s.pctSections)}
+                bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
+                {L('Quase todas fecharam no horário normal.', 'Almost all closed at the normal time.')}
+              </Card>
+              <Card n="2" kicker={L('Dos votos', 'Of the votes')} big={pct(s.pctVotes)}
+                bigSub={L(`${fmtN(s.va)} de ${fmtN(s.votes)} votos`, `${fmtN(s.va)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctVotes} />}>
+                {oneIn ? L(`1 voto em cada ${fmtN(oneIn)}.`, `1 vote in every ${fmtN(oneIn)}.`) : '–'}
+              </Card>
+              <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
+                bigSub={L(`vantagem total de ${fmtN(s.gap)} votos`, `total margin of ${fmtN(s.gap)} votes`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
+                {left > 0
+                  ? L(`Sem esses votos, a vantagem ainda seria de ${fmtN(left)}.`, `Without these votes, the margin would still be ${fmtN(left)}.`)
+                  : L(`Esses votos são maiores que a vantagem de ${W}.`, `These votes are larger than ${W}’s margin.`)}
+              </Card>
+            </div>
+          </section>
+        </>
+      )}
 
       <section className="story" aria-labelledby="cortes">
         <h2 id="cortes">{L('Todas as urnas, por horário de encerramento', 'All urnas, by closing time')}</h2>

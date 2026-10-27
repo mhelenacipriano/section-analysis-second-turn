@@ -119,28 +119,30 @@ export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outr
 export function pesoTardio(data, lim, scope = '', cedo = false) {
   const T = lim * 60;
   const by = new Map();
-  const blank = (uf) => ({ uf, sections: 0, va0: 0, nDet: 0, vaDet: 0, n: 0, va: 0 });
+  const blank = (uf) => ({ uf, sections: 0, va0: 0, nDet: 0, vaDet: 0, vdDet: 0, n: 0, va: 0, vdSel: 0 });
   const get = (uf) => by.get(uf) || by.set(uf, blank(uf)).get(uf);
   for (const m of data.mun) { const u = get(m.uf); u.sections += m.n; u.va0 += m.va0 || 0; }
   for (const d of data.det) {
     const u = get(d.mun.uf);
-    u.nDet++; u.vaDet += d.va;
-    if (d.enc != null && d.enc >= T) { u.n++; u.va += d.va; }
+    u.nDet++; u.vaDet += d.va; u.vdDet += d.vd;
+    if (d.enc != null && d.enc >= T) { u.n++; u.va += d.va; u.vdSel += d.vd; }
   }
-  const pick = (u) => (cedo ? { ...u, n: u.sections - u.nDet, va: u.va0 } : u);
+  const pick = (u) => (cedo ? { ...u, n: u.sections - u.nDet, va: u.va0, early: true } : u);
   const make = (acc, t2) => {
     const margin = t2.lula - t2.flavio;
-    return { ...acc, votes: t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
+    // votes cast in the urnas of the group: the late urnas' own log counts, or everything else for the early group
+    const inGroup = acc.early ? t2.comparecimento - acc.vdDet : acc.vdSel;
+    return { ...acc, votes: t2.comparecimento, inGroup, pctInGroup: inGroup / t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
       pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin) };
   };
-  const sum = (list) => list.reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, va0: a.va0 + u.va0, nDet: a.nDet + u.nDet, vaDet: a.vaDet + u.vaDet, n: a.n + u.n, va: a.va + u.va }), blank(''));
+  const sum = (list) => list.reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, va0: a.va0 + u.va0, nDet: a.nDet + u.nDet, vaDet: a.vaDet + u.vaDet, vdDet: a.vdDet + u.vdDet, n: a.n + u.n, va: a.va + u.va, vdSel: a.vdSel + u.vdSel }), blank(''));
   const of = (u) => u || blank(scope);
   const base = scope ? of(by.get(scope)) : sum([...by.values()]);
   const t2 = data.t2[scope || 'BR'];
   return {
     states: [...by.values()].filter((u) => data.t2[u.uf]).map((u) => make(pick(u), data.t2[u.uf])),
     scope: make(pick(base), t2),
-    early: make({ ...base, n: base.sections - base.nDet, va: base.va0 }, t2),
+    early: make({ ...base, n: base.sections - base.nDet, va: base.va0, early: true }, t2),
     all: make({ ...base, n: base.sections, va: base.va0 + base.vaDet }, t2),
   };
 }

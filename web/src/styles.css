@@ -241,3 +241,5 @@ tr[tabindex] { cursor: pointer; } tr.sel td { background: color-mix(in srgb, var
 .atalhos { display: flex; flex-wrap: wrap; gap: 10px; }
 tr.sub td:first-child { padding-left: 28px; color: var(--fg2); } tr.sub td { font-size: .92rem; }
 tr.total td { background: var(--soft); border-bottom: 2px solid var(--line); }
+.peso-veredito.normal { border-left-color: var(--fecha); }
+.selo { justify-self: start; padding: 4px 12px; border-radius: 999px; background: color-mix(in srgb, var(--fecha) 16%, transparent); color: var(--fecha); border: 1px solid var(--fecha); font-weight: 700; font-size: .9rem; }
