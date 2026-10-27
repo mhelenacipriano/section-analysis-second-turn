@@ -9,11 +9,11 @@ import Metodologia from './pages/Metodologia.jsx';
 import Overview from './pages/Overview.jsx';
 import Secoes from './pages/Secoes.jsx';
 
-const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc'];
+const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc', 'cedo'];
 const PAGES = { '/': Overview, '/mapa': Mapa, '/peso': Overview, '/secoes': Secoes, '/metodologia': Metodologia };
 
 // filters live in the URL (#/secoes?uf=SP&lim=1140) so any view can be shared
-const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc });
+const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc, cedo: f.cedo });
 
 export default function App() {
   const { path, query, go } = useRoute();
@@ -41,6 +41,7 @@ export default function App() {
   const setF = useCallback((patch) => {
     const next = { ...f, ...patch };
     if ('uf' in patch && patch.uf !== f.uf && !('mun' in patch)) next.mun = '';
+    if ('lim' in patch && !('cedo' in patch)) next.cedo = '';      // picking a time leaves the "before 17:30" view
     go(undefined, toQuery(next, query));
   }, [f, query, go]);
 

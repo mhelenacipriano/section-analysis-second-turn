@@ -186,5 +186,8 @@ reads only the logs of the sections that closed late and keeps the time of the l
 `data/t2/resultado_2t.json` / `web/public/data/t2.json`. The page compares the votes recorded after 17:00 Brasília in the
 urnas that closed at/after the chosen time with the total votes and with Lula's margin (4,430,191). Numbers match the
 public apolinario/urnas-tardias data (e.g. 5,052 votes in the 7,353 urnas closed after 17:45).
-`data/votos_apos_17h_corrigido.csv` re-counts 7 Fernando de Noronha sections whose urna clock is 1 h ahead of Pernambuco's
-(the scan had counted from 17:00 on the urna clock, i.e. 16:00 Brasília); `build_site_data.py` applies it.
+`scripts/recontar_votos_17h.py` re-reads 579 sections whose votes after 17:00 Brasília the first scan got wrong (Fernando de
+Noronha's urnas run 1 h ahead of Pernambuco's default, the Amazonas municipalities on Acre time run 2 h behind, and a few the
+first scan could not read) into `data/votos_apos_17h_corrigido.csv`; `build_site_data.py` applies it. With it, the votes after
+17:00 add up to 34,330 (29,191 in the urnas closed before 17:30 + 5,139 in the later ones), identical to the public
+apolinario/urnas-tardias data.

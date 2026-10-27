@@ -239,3 +239,5 @@ a.btn { text-decoration: none; }
 tr[tabindex] { cursor: pointer; } tr.sel td { background: color-mix(in srgb, var(--fecha) 14%, transparent); }
 .pcard-v small { font-size: .5em; color: var(--muted); font-family: inherit; margin-left: 4px; }
 .atalhos { display: flex; flex-wrap: wrap; gap: 10px; }
+tr.sub td:first-child { padding-left: 28px; color: var(--fg2); } tr.sub td { font-size: .92rem; }
+tr.total td { background: var(--soft); border-bottom: 2px solid var(--line); }

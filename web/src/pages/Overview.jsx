@@ -7,6 +7,7 @@ import { fmtHM, fmtN, fmtPct } from '../format.js';
 import { pesoTardio } from '../stats.js';
 
 const CUTS = [17 * 60 + 30, 17 * 60 + 45, 18 * 60, 18 * 60 + 30, 18 * 60 + 50, 19 * 60];
+const EARLY = 17 * 60 + 30;
 // a share this small needs more decimals to be read at all
 const pct = (x) => fmtPct(x, x < 0.0001 ? 4 : x < 0.01 ? 3 : 2);
 const winnerName = (k) => (k === 'lula' ? 'Lula' : 'Flávio Bolsonaro');
@@ -30,27 +31,40 @@ function Card({ n, kicker, big, bigSub, meter, children }) {
 
 function ResumoInner({ data, f, setF, go }) {
   const { L } = useLang();
+  const cedo = !!f.cedo;
   const T = fmtHM(f.lim);
-  const { states, scope: s } = useMemo(() => pesoTardio(data, f.lim, f.uf), [data, f.lim, f.uf]);
+  const { states, scope: s, early, all } = useMemo(() => pesoTardio(data, f.lim, f.uf, cedo), [data, f.lim, f.uf, cedo]);
   const where = f.uf || L('o país', 'the country');
   const whereLead = f.uf ? L(`Em ${f.uf}`, `In ${f.uf}`) : L('No país', 'Across the country');
   const W = winnerName(s.winner);
   const oneIn = s.pctVotes ? Math.round(1 / s.pctVotes) : null;
   const left = s.gap - s.va;
+  const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
 
+  // every row is a share of the same totals: early + 17:30-or-later = all urnas; the cut-offs below are parts of "17:30 or later"
   const cuts = useMemo(() => CUTS.map((c) => ({ c, ...pesoTardio(data, c, f.uf).scope })), [data, f.uf]);
+  const rest = useMemo(() => ({ ...all, n: all.n - early.n, va: all.va - early.va, pctSections: (all.n - early.n) / (all.sections || 1),
+    pctVotes: (all.va - early.va) / all.votes, pctGap: (all.va - early.va) / all.gap }), [all, early]);
+  const noRec = rest.n - cuts[0].n;
   const rows = useMemo(() => states.filter((r) => r.n > 0), [states]);
-  const stateOf = (r) => r.uf;
 
   const columns = [
-    { key: 'uf', label: L('UF', 'State'), get: stateOf },
-    { key: 'n', label: L('Urnas fechadas tarde', 'Urnas closed late'), num: true, get: (r) => r.n, render: (r) => `${fmtN(r.n)} (${fmtPct(r.pctSections, 2)})`, csv: (r) => r.n },
+    { key: 'uf', label: L('UF', 'State'), get: (r) => r.uf },
+    { key: 'n', label: cedo ? L('Urnas fechadas antes das 17:30', 'Urnas closed before 17:30') : L('Urnas fechadas tarde', 'Urnas closed late'), num: true, get: (r) => r.n, render: (r) => `${fmtN(r.n)} (${fmtPct(r.pctSections, 2)})`, csv: (r) => r.n },
     { key: 'va', label: L('Votos depois das 17h', 'Votes after 5 pm'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
     { key: 'pv', label: L('% dos votos do estado', '% of the state’s votes'), num: true, get: (r) => r.pctVotes, render: (r) => pct(r.pctVotes), csv: (r) => (r.pctVotes * 100).toFixed(4) },
     { key: 'w', label: L('Venceu o estado (2º turno)', 'Won the state (2nd round)'), get: (r) => winnerName(r.winner), render: (r) => <span className={`chip-venc ${r.winner}`}>{winnerName(r.winner)}</span> },
     { key: 'g', label: L('Vantagem do vencedor', 'Winner’s margin'), num: true, get: (r) => r.gap, render: (r) => fmtN(r.gap) },
     { key: 'pg', label: L('Votos tardios ÷ vantagem', 'Late votes ÷ margin'), num: true, get: (r) => r.pctGap, render: (r) => pct(r.pctGap), csv: (r) => (r.pctGap * 100).toFixed(4) },
   ];
+
+  // the table of closing times: every row against the same totals
+  const line = (key, label, r, { sub = false, sel = false, onClick, strong = false } = {}) => (
+    <tr key={key} className={`${sub ? 'sub' : ''} ${sel ? 'sel' : ''} ${strong ? 'total' : ''}`} onClick={onClick} tabIndex={onClick ? 0 : undefined} onKeyDown={(e) => onClick && e.key === 'Enter' && onClick()}>
+      <td>{strong ? <strong>{label}</strong> : label}</td><td className="num">{fmtN(r.n)} <small>({fmtPct(r.pctSections, 2)})</small></td><td className="num">{fmtN(r.va)}</td>
+      <td className="num">{pct(r.pctVotes)}</td><td className="num">{pct(r.pctGap)}</td>
+    </tr>
+  );
 
   return (
     <div className="stack">
@@ -63,13 +77,13 @@ function ResumoInner({ data, f, setF, go }) {
         </p>
       </header>
 
-      <Filters data={data} f={f} setF={setF} basico />
+      <Filters data={data} f={f} setF={setF} basico cedo />
 
       <section className={`peso-veredito ${s.winner}`} role="status" aria-label={L('Resumo', 'Summary')}>
         <p className="pv-lead">
           {L(
-            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam às {T} ou depois. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17h.</>,
-            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed at {T} or later. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5 pm.</>,
+            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam {when}. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17h.</>,
+            <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed {when}. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5 pm.</>,
           )}
         </p>
         <div className="pv-nums">
@@ -78,11 +92,11 @@ function ResumoInner({ data, f, setF, go }) {
         </div>
       </section>
 
-      <section aria-label={L('Quatro perspectivas', 'Four perspectives')}>
+      <section aria-label={L('Três perspectivas', 'Three perspectives')}>
         <div className="pcards">
           <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={pct(s.pctSections)}
             bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
-            {L(`Quase todas fecharam no horário normal.`, `Almost all closed at the normal time.`)}
+            {cedo ? L('A grande maioria das urnas fechou no horário normal.', 'Most urnas closed at the normal time.') : L('Quase todas fecharam no horário normal.', 'Almost all closed at the normal time.')}
           </Card>
           <Card n="2" kicker={L('Dos votos', 'Of the votes')} big={pct(s.pctVotes)}
             bigSub={L(`${fmtN(s.va)} de ${fmtN(s.votes)} votos`, `${fmtN(s.va)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctVotes} />}>
@@ -98,27 +112,29 @@ function ResumoInner({ data, f, setF, go }) {
       </section>
 
       <section className="story" aria-labelledby="cortes">
-        <h2 id="cortes">{L('E se o horário de corte mudar?', 'What if the cut-off time changes?')}</h2>
+        <h2 id="cortes">{L('Todas as urnas, por horário de encerramento', 'All urnas, by closing time')}</h2>
+        <p className="story-intro">{L(`As urnas fechadas antes das 17:30 mais as fechadas às 17:30 ou depois somam o total (${where}). Clique numa linha para ver só aquele grupo.`,
+          `Urnas closed before 17:30 plus those closed at 17:30 or later add up to the total (${where}). Click a row to see only that group.`)}</p>
         <div className="tabela-scroll">
           <table>
             <thead><tr>
-              <th>{L('Fecharam às… ou depois', 'Closed at… or later')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Votos depois das 17h', 'Votes after 5 pm')}</th>
+              <th>{L('Horário de encerramento', 'Closing time')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Votos depois das 17h', 'Votes after 5 pm')}</th>
               <th className="num">{L('% dos votos', '% of votes')}</th><th className="num">{L('% da vantagem', '% of the margin')}</th></tr></thead>
             <tbody>
-              {cuts.map((r) => (
-                <tr key={r.c} className={r.c === f.lim ? 'sel' : ''} onClick={() => setF({ lim: r.c })} tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && setF({ lim: r.c })}>
-                  <td><strong>{fmtHM(r.c)}</strong></td><td className="num">{fmtN(r.n)} <small>({fmtPct(r.pctSections, 2)})</small></td><td className="num">{fmtN(r.va)}</td>
-                  <td className="num">{pct(r.pctVotes)}</td><td className="num">{pct(r.pctGap)}</td>
-                </tr>
-              ))}
+              {line('all', L('Todas as urnas (total)', 'All urnas (total)'), all, { strong: true })}
+              {line('early', L('Antes das 17:30', 'Before 17:30'), early, { sel: cedo, onClick: () => setF({ cedo: '1' }) })}
+              {line('rest', L('17:30 ou depois', '17:30 or later'), rest, { sel: false, onClick: () => setF({ lim: EARLY }) })}
+              {cuts.map((r) => line(`c${r.c}`, <>{L('a partir das', 'from')} {fmtHM(r.c)}</>, r, { sub: true, sel: !cedo && r.c === f.lim, onClick: () => setF({ lim: r.c }) }))}
             </tbody>
           </table>
         </div>
+        {noRec > 0 && <p className="note">{L(`“17:30 ou depois” inclui ${fmtN(noRec)} urnas sem registro de encerramento no log; as linhas “a partir das” não as contam.`,
+          `“17:30 or later” includes ${fmtN(noRec)} urnas with no closing record in the log; the “from” rows do not count them.`)}</p>}
       </section>
 
       <section className="story" aria-labelledby="ufs">
         <h2 id="ufs">{L('Por estado', 'By state')}</h2>
-        <DataTable rows={rows} columns={columns} csvName={`peso_votos_tardios_${f.lim}.csv`} initialSort={{ key: 'pv', dir: 'desc' }} pageSize={30}
+        <DataTable rows={rows} columns={columns} csvName={`peso_votos_tardios_${cedo ? 'antes_1730' : f.lim}.csv`} initialSort={{ key: 'pv', dir: 'desc' }} pageSize={30}
           onRow={(r) => setF({ uf: r.uf })} />
       </section>
 

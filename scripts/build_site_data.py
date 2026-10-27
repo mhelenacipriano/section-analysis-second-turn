@@ -100,13 +100,21 @@ def main():
 
     # votes after 17:00 BRASÍLIA re-counted with the right clock where the scan used the state's
     # (Fernando de Noronha's urnas run 1 h ahead of Pernambuco's default; see data/votos_apos_17h_corrigido.csv)
+    # va_old: votes after 17:00 of EVERY section that had any (first vote scan, results/secoes_apos_17h_<UF>.csv);
+    # the late-closing sections also carry it in their detail row. The re-count overrides both.
+    va_old = {}
+    for p in glob.glob(os.path.join(root, "results", "secoes_apos_17h_[A-Z][A-Z].csv")):
+        with open(p, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                va_old[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = int(r["votos_apos_corte"])
     fix_path = os.path.join(root, "data", "votos_apos_17h_corrigido.csv")
     if os.path.exists(fix_path):
         with open(fix_path, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
-                row = det.get((r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}"))
-                if row is not None:
-                    row["votos_apos_corte"] = r["votos_apos_17h_brasilia"]
+                k = (r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")
+                va_old[k] = int(r["votos_apos_17h_brasilia"])
+                if k in det:
+                    det[k]["votos_apos_corte"] = r["votos_apos_17h_brasilia"]
 
     def det_time(r, col, off):
         v = r.get(col) if r else None
@@ -124,6 +132,8 @@ def main():
         uni.at[i, "ult"] = det_time(r, "ultimo_voto", off)
         uni.at[i, "vd"] = int(r["votos_no_dia"]); uni.at[i, "va"] = int(r["votos_apos_corte"])
     uni["registrar"] = uni.enc.isna() | (uni.enc.fillna(0) >= RECORD_FROM)
+    # votes after 17:00 in the sections that closed on time (before 17:30): the people still in line at 17:00
+    uni["va0"] = [0 if reg else va_old.get((u, k), 0) for reg, u, k in zip(uni.registrar, uni.uf, uni.key)]
 
     # --- municipalities --------------------------------------------------------------------
     xw = pd.read_csv(os.path.join(root, "data", "tse_ibge.csv"), dtype=str)
@@ -134,14 +144,14 @@ def main():
                 wf=("vencedor", lambda s: int((s == FLAVIO).sum())),
                 vl=("lula", "sum"), vf=("flavio", "sum"), vo=("outros", "sum"),
                 vb=("brancos", "sum"), vn=("nulos", "sum"),
-                ap=("aptos", "sum"), cp=("comparecimento", "sum")).reset_index()
+                ap=("aptos", "sum"), cp=("comparecimento", "sum"), va0=("va0", "sum")).reset_index()
     mun["wo"] = mun.n - mun.wl - mun.wf
     mun["ibge"] = [ibge.get((u, m), "") for u, m in zip(mun.uf, mun.municipio)]
     mun_index = {(u, m): i for i, (u, m) in enumerate(zip(mun.uf, mun.municipio))}
     mcols = ["uf", "cod", "ibge", "nome", "n", "wl", "wf", "wo", "vl", "vf", "vo", "vb", "vn",
-             "ap", "cp"]
+             "ap", "cp", "va0"]
     mrows = [[r.uf, r.municipio, r.ibge, r.nome, int(r.n), int(r.wl), int(r.wf), int(r.wo),
-              int(r.vl), int(r.vf), int(r.vo), int(r.vb), int(r.vn), int(r.ap), int(r.cp)]
+              int(r.vl), int(r.vf), int(r.vo), int(r.vb), int(r.vn), int(r.ap), int(r.cp), int(r.va0)]
              for r in mun.itertuples()]
 
     # --- changed polling places --------------------------------------------------------------

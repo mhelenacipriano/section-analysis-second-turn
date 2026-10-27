@@ -18,6 +18,7 @@ export function readFilters(q) {
     lim: Number.isFinite(lim) && lim >= LIM_MIN && lim <= LIM_MAX ? Math.round(lim) : DEFAULT_LIM,
     alt: q.alt === '1' ? '1' : '',
     venc: ['lula', 'flavio', 'outros'].includes(q.venc) ? q.venc : '',
+    cedo: q.cedo === '1' ? '1' : '',                  // only the urnas that closed before 17:30
   };
 }
 
@@ -106,28 +107,40 @@ export function byUnit(data, lim, key, alt = false) {
 export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outros');
 
 /**
- * Weight of the votes cast after 17:00 (Brasília) in the urnas that closed at/after the threshold,
- * against the official 2nd-round result (data.t2: TSE totals per state and national).
- *   scope '' = Brazil, 'RJ' = one state.  Votes counted in the urna log (va) include blank and null votes,
+ * Weight of the votes cast after 17:00 (Brasília) against the official 2nd-round result
+ * (data.t2: TSE totals per state and national). The urnas are split by closing time:
+ *   early  closed before 17:30 (no detail row)      mid/late  closed at/after 17:30 (or without a record)
+ * and `lim` picks the late group (closed at/after lim); `cedo` picks the early group instead.
+ * scope '' = Brazil, 'RJ' = one state. Votes counted in the urna log (va) include blank and null votes,
  * like the turnout (comparecimento) they are compared with.
+ * Returns { scope, states, all, early }: the selected group for the scope, for every state, and the two
+ * groups that add up to every urna of the scope.
  */
-export function pesoTardio(data, lim, scope = '') {
+export function pesoTardio(data, lim, scope = '', cedo = false) {
   const T = lim * 60;
   const by = new Map();
-  const get = (uf) => by.get(uf) || by.set(uf, { uf, sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 }).get(uf);
-  for (const m of data.mun) get(m.uf).sections += m.n;
+  const blank = (uf) => ({ uf, sections: 0, va0: 0, nDet: 0, vaDet: 0, n: 0, va: 0 });
+  const get = (uf) => by.get(uf) || by.set(uf, blank(uf)).get(uf);
+  for (const m of data.mun) { const u = get(m.uf); u.sections += m.n; u.va0 += m.va0 || 0; }
   for (const d of data.det) {
-    if (d.enc == null || d.enc < T) continue;
     const u = get(d.mun.uf);
-    u.n++; u.va += d.va; u.l += d.l; u.f += d.f; u.o += d.o;
+    u.nDet++; u.vaDet += d.va;
+    if (d.enc != null && d.enc >= T) { u.n++; u.va += d.va; }
   }
+  const pick = (u) => (cedo ? { ...u, n: u.sections - u.nDet, va: u.va0 } : u);
   const make = (acc, t2) => {
     const margin = t2.lula - t2.flavio;
     return { ...acc, votes: t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
       pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin) };
   };
-  const states = [...by.values()].filter((u) => data.t2[u.uf]).map((u) => make(u, data.t2[u.uf]));
-  const total = [...by.values()].reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, n: a.n + u.n, va: a.va + u.va, l: a.l + u.l, f: a.f + u.f, o: a.o + u.o }),
-    { uf: '', sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 });
-  return { states, scope: scope ? make(by.get(scope) || { uf: scope, sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 }, data.t2[scope]) : make(total, data.t2.BR) };
+  const sum = (list) => list.reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, va0: a.va0 + u.va0, nDet: a.nDet + u.nDet, vaDet: a.vaDet + u.vaDet, n: a.n + u.n, va: a.va + u.va }), blank(''));
+  const of = (u) => u || blank(scope);
+  const base = scope ? of(by.get(scope)) : sum([...by.values()]);
+  const t2 = data.t2[scope || 'BR'];
+  return {
+    states: [...by.values()].filter((u) => data.t2[u.uf]).map((u) => make(pick(u), data.t2[u.uf])),
+    scope: make(pick(base), t2),
+    early: make({ ...base, n: base.sections - base.nDet, va: base.va0 }, t2),
+    all: make({ ...base, n: base.sections, va: base.va0 + base.vaDet }, t2),
+  };
 }
