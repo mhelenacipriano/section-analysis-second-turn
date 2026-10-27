@@ -284,6 +284,8 @@ RESULT_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "hora_cor
 ENC_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "votos_no_dia", "votos_apos_corte",
               "ultimo_voto", "encerrar_selecionado", "encerramento_confirmado", "inicio_encerramento"]
 # --evento sim: the same plus the time of the operator's "Todas as pessoas presentes já votaram? SIM"
+EXTRA = {"sim": "todos_votaram_sim", "imgze": "imgze_termino"}      # --evento -> extra CSV column
+EXTRA_NAME = {"sim": "todos_votaram", "imgze": "imgze"}               # --evento -> file prefix and state/results folder suffix
 ENC_FIELDS_SIM = ENC_FIELDS[:9] + ["todos_votaram_sim"] + ENC_FIELDS[9:]
 PROBLEM_FIELDS = ["municipio", "zona", "secao", "problema", "tentativas", "indice"]
 FLUSH_EVERY = 500       # sections
@@ -409,10 +411,11 @@ def main():
                          "failures (429, network) do not count")
     ap.add_argument("--encerramento", action="store_true",
                     help="scan the closing sequence of each urna instead of the late votes")
-    ap.add_argument("--evento", choices=("conf", "sim"), default="conf",
+    ap.add_argument("--evento", choices=("conf", "sim", "imgze"), default="conf",
                     help="--encerramento: which log line gives the closing time. conf = 'Procedimento de "
                          "encerramento confirmado' (default); sim = 'Todas as pessoas presentes já "
-                         "votaram? SIM' (its own state_sim/ and results_sim/)")
+                         "votaram? SIM' (its own state_sim/ and results_sim/); imgze = 'Gerando arquivo de "
+                         "resultado [imgze.dat] + [Término]' (state_imgze/, results_imgze/)")
     ap.add_argument("--so-secoes", metavar="CSV",
                     help="only check the sections listed in this CSV (columns uf, municipio, zona, "
                          "secao), e.g. results_enc/encerramentos_BR.csv: the sections that closed late. "
@@ -422,10 +425,10 @@ def main():
     ap.add_argument("--state-dir")
     ap.add_argument("--results-dir")
     args = ap.parse_args()
-    sim = args.evento == "sim"
+    sim = args.evento != "conf"                      # a scan keyed on another log line than the confirmed closing
     args.encerramento = args.encerramento or sim
-    args.state_dir = args.state_dir or ("state_sim" if sim else "state_enc" if args.encerramento else "state")
-    args.results_dir = args.results_dir or ("results_sim" if sim else "results_enc" if args.encerramento else "results")
+    args.state_dir = args.state_dir or (f"state_{args.evento}" if sim else "state_enc" if args.encerramento else "state")
+    args.results_dir = args.results_dir or (f"results_{args.evento}" if sim else "results_enc" if args.encerramento else "results")
     uf = args.uf.upper()
     started = time.monotonic()
     deadline = started + args.max_minutes * 60 if args.max_minutes else None
@@ -464,8 +467,8 @@ def main():
         record_cut = reg if args.hora_local else local_cutoff(reg, uf)
         print(f"closing times: rows for sections closed at/after {record_cut:%H:%M} on {uf} urna clocks")
     progress = Progress(uf, args.state_dir, args.results_dir,
-                        "todos_votaram" if sim else "encerramentos" if args.encerramento else "secoes_apos_17h",
-                        (ENC_FIELDS_SIM if sim else ENC_FIELDS) if args.encerramento else RESULT_FIELDS)
+                        EXTRA_NAME[args.evento] if sim else "encerramentos" if args.encerramento else "secoes_apos_17h",
+                        ((ENC_FIELDS[:9] + [EXTRA[args.evento]] + ENC_FIELDS[9:]) if sim else ENC_FIELDS) if args.encerramento else RESULT_FIELDS)
     merged = [s for s in sections if s["agregada_a"]]
     sections = [s for s in sections if not s["agregada_a"]]
     if merged:
@@ -551,7 +554,7 @@ def main():
                             "encerrar_selecionado": hms(res[4]["sel"]),
                             "encerramento_confirmado": hms(res[4]["conf"]),
                             "inicio_encerramento": hms(res[4]["ini"]),
-                            **({"todos_votaram_sim": hms(res[4]["sim"])} if sim else {}),
+                            **({EXTRA[args.evento]: hms(res[4][args.evento])} if sim else {}),
                         })
                     late = 0   # rows were handled above
                 else:

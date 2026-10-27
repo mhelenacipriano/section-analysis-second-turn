@@ -121,7 +121,9 @@ def read_log_lines(blob):
 #   Operador selecionou: Encerrar votação  ->  Procedimento de encerramento confirmado
 #   ->  ...registro de mesários...  ->  Inicio do Encerramento
 #   ("sim" = the operator's answer "Todas as pessoas presentes já votaram? SIM", 2-6 s after "sel")
+#   ("imgze" = the urna finished writing its result file imgze.dat, ~1 min after "ini")
 CLOSE_KINDS = (("sel", "operador selecionou: encerrar vota"),
+               ("imgze", "gerando arquivo de resultado [imgze.dat] + [t"),
                ("sim", "todas as pessoas presentes j"),
                ("conf", "procedimento de encerramento confirmado"),
                ("ini", "inicio do encerramento"))
@@ -129,7 +131,7 @@ CLOSE_KINDS = (("sel", "operador selecionou: encerrar vota"),
 
 def analyse(blob, filename, cutoff, closure=False):
     """Returns (ids, total, late, first_late, last_vote); with closure=True also a 6th item:
-    {"sel"|"sim"|"conf"|"ini": datetime of the LAST such event on the day, or None}."""
+    {"sel"|"sim"|"imgze"|"conf"|"ini": datetime of the LAST such event on the day, or None}."""
     ids = {}
     m = NAME_RE.search(filename)
     if m:
@@ -146,7 +148,8 @@ def analyse(blob, filename, cutoff, closure=False):
     close_re = re.compile(
         r"^" + re.escape(day) + r" (\d\d):(\d\d):(\d\d)\t[^\t\n]*\t[^\t\n]*\t[^\t\n]*\t"
         r"(Operador selecionou: Encerrar vota.{1,2}o|Procedimento de encerramento confirmado"
-        r"|Inicio do Encerramento|Todas as pessoas presentes j.{1,2} votaram\? ?SIM)", re.M | re.I) if closure else None
+        r"|Inicio do Encerramento|Todas as pessoas presentes j.{1,2} votaram\? ?SIM"
+        r"|Gerando arquivo de resultado \[imgze\.dat\] \+ \[T.rmino\])", re.M | re.I) if closure else None
     closed = {k: None for k, _ in CLOSE_KINDS}   # seconds since midnight
     cut = cutoff.hour * 3600 + cutoff.minute * 60 + cutoff.second
     total = late = 0
