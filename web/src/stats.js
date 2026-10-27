@@ -123,11 +123,8 @@ export function pesoTardio(data, lim, scope = '') {
   }
   const make = (acc, t2) => {
     const margin = t2.lula - t2.flavio;
-    const valid1 = acc.l + acc.f + acc.o;
-    const net = valid1 ? acc.va * ((acc.l - acc.f) / valid1) : 0;       // estimate: late votes split like the section's 1st round
     return { ...acc, votes: t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
-      pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin),
-      net, netPctGap: net / Math.abs(margin), shareL: valid1 ? acc.l / valid1 : 0, shareF: valid1 ? acc.f / valid1 : 0 };
+      pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin) };
   };
   const states = [...by.values()].filter((u) => data.t2[u.uf]).map((u) => make(u, data.t2[u.uf]));
   const total = [...by.values()].reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, n: a.n + u.n, va: a.va + u.va, l: a.l + u.l, f: a.f + u.f, o: a.o + u.o }),

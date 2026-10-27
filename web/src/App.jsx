@@ -20,7 +20,7 @@ export default function App() {
   const { path, query, go } = useRoute();
   const [data, setData] = useState(null);
   const [err, setErr] = useState(null);
-  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'dark');
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'light');
   const [themeKey, setThemeKey] = useState(0);
   const [lang, setLangState] = useState(detectLang);
   const [menu, setMenu] = useState(false);
@@ -28,7 +28,7 @@ export default function App() {
   setLocale(lang);                         // numbers follow the page language (read while rendering)
   const L = useMemo(() => makeL(lang), [lang]);
   const ctx = useMemo(() => ({ lang, L }), [lang, L]);
-  const setLang = (l) => { setLangState(l); try { localStorage.setItem('lang', l); } catch { /* private mode */ } };
+  const setLang = (l) => { setLangState(l); try { localStorage.setItem('lang2', l); } catch { /* private mode */ } };
 
   useEffect(() => { loadAll().then(setData).catch(setErr); }, []);
   useEffect(() => { window.scrollTo(0, 0); setMenu(false); }, [path]);
@@ -49,7 +49,7 @@ export default function App() {
   const toggleTheme = () => {
     const t = theme === 'dark' ? 'light' : 'dark';
     document.documentElement.dataset.theme = t;
-    try { localStorage.setItem('tema', t); } catch { /* private mode */ }
+    try { localStorage.setItem('tema2', t); } catch { /* private mode */ }
     setTheme(t); setThemeKey((k) => k + 1);
   };
 

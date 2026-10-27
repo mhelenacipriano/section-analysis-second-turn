@@ -7,9 +7,9 @@ export const useLang = () => useContext(LangContext);
 
 export function detectLang() {
   try {
-    const saved = localStorage.getItem('lang');
+    const saved = localStorage.getItem('lang2');       // only an explicit choice of the visitor
     if (saved === 'pt' || saved === 'en') return saved;
   } catch { /* private mode */ }
-  return (navigator.language || 'pt').toLowerCase().startsWith('pt') ? 'pt' : 'en';
+  return 'pt';
 }
 export const makeL = (lang) => (pt, en) => (lang === 'en' ? en : pt);

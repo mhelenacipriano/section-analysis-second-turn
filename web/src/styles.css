@@ -195,21 +195,6 @@ td.empty { text-align: center; white-space: normal; }
 a.btn { text-decoration: none; }
 .rank li > span { text-align: right; font-variant-numeric: tabular-nums; } .rank li > span small { display: block; color: var(--muted); font-size: .76rem; }
 
-/* ---------- "Which candidate was most affected" answer card ---------- */
-.chips-linha { display: flex; flex-wrap: wrap; gap: 6px 8px; align-items: center; }
-.veredito { padding: 18px 20px; border-radius: var(--radius); border: 1px solid var(--line); background: var(--panel); display: grid; gap: 4px; border-left-width: 8px; }
-.veredito.lula { border-left-color: var(--lula); }
-.veredito.flavio { border-left-color: var(--flavio); }
-.veredito-k { color: var(--muted); font-size: .82rem; text-transform: uppercase; letter-spacing: .06em; }
-.veredito-v { font-family: var(--serif); font-size: clamp(1.9rem, 6vw, 3rem); line-height: 1.1; }
-.veredito.lula .veredito-v { color: var(--lula); }
-.veredito.flavio .veredito-v { color: var(--flavio); }
-.passos { margin: 0; padding-left: 1.2rem; display: grid; gap: 10px; max-width: 72ch; font-size: 1.04rem; }
-.passos .passo-outro { color: var(--fg2); font-size: .95rem; }
-.detalhes-estado { border: 1px solid var(--line); border-radius: var(--radius); padding: 10px 14px; background: var(--panel); }
-.detalhes-estado summary { cursor: pointer; font-weight: 600; padding: 6px 0; }
-.detalhes-estado[open] summary { margin-bottom: 10px; }
-
 .classes { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .8rem; color: var(--fg2); }
 .classes span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .classes i { display: inline-block; width: 1.5rem; height: .9rem; border-radius: 3px; border: 1px solid var(--line); }
