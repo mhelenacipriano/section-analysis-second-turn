@@ -115,15 +115,18 @@ code { background: var(--panel2); padding: 1px 6px; border-radius: 6px; font-siz
 .chip-venc.flavio { background: repeating-linear-gradient(135deg, var(--flavio) 0 6px, color-mix(in srgb, var(--flavio) 55%, #000) 6px 9px); color: #fff; text-shadow: 0 0 3px #000; border-color: var(--flavio); }
 
 /* ---------- Filters ---------- */
-.filtros { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px 16px; padding: 14px 16px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); align-items: end; }
+/* fields on one row, the closing-time control full width below, small actions last */
+.filtros { display: flex; flex-direction: column; gap: 16px; padding: 16px 18px; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); }
+.filtros-campos { display: flex; flex-wrap: wrap; gap: 12px 16px; }
+.filtros-campos label { flex: 0 1 220px; min-width: 150px; }
 .filtros label { display: flex; flex-direction: column; gap: 4px; font-size: .8rem; color: var(--muted); }
 .filtros select { min-height: 44px; padding: 0 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; color: var(--fg); font-size: .95rem; }
 .filtros select:disabled { opacity: .5; }
-.limiar { grid-column: span 2; display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); }
+.limiar { display: flex; flex-direction: column; font-size: .8rem; color: var(--muted); max-width: 640px; }
 .filtros .limiar label { display: block; flex-direction: initial; font-size: .92rem; color: var(--fg); } .limiar strong { font-size: 1.15rem; }
 .limiar input[type=range] { width: 100%; accent-color: var(--red-solid); margin: 8px 0 2px; min-height: 28px; }
-.filtros-acoes { display: flex; gap: 8px; flex-wrap: wrap; align-items: end; grid-column: 1 / -1; }
-@media (max-width: 600px) { .limiar { grid-column: span 1; } }
+.filtros-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.filtros-acoes .btn { min-height: 36px; padding: 4px 14px; font-size: .86rem; }
 
 /* ---------- Tables ---------- */
 .tabela { display: grid; gap: 10px; }
@@ -210,8 +213,6 @@ a.btn { text-decoration: none; }
 .escala i { display: inline-block; width: 2.2rem; height: 1.1rem; border-radius: 5px; border: 1px solid var(--line); }
 
 /* ---------- Peso dos votos tardios ---------- */
-.peso-filtros { grid-template-columns: minmax(150px, 220px) minmax(0, 1fr); }
-@media (max-width: 640px) { .peso-filtros { grid-template-columns: 1fr; } }
 .peso-veredito { padding: 22px clamp(18px, 4vw, 30px); background: var(--panel); border: 1px solid var(--line); border-left: 8px solid var(--fecha); border-radius: var(--radius); display: grid; gap: 16px; }
 .pv-lead { font-size: clamp(1.05rem, 2.6vw, 1.3rem); line-height: 1.45; color: var(--fg2); max-width: 60ch; } .pv-lead strong { color: var(--fg); }
 .pv-nums { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px 28px; }

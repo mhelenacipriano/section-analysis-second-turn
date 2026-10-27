@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import DataTable from '../components/DataTable.jsx';
+import { Filters } from '../components/Filters.jsx';
 import { Note } from '../components/ui.jsx';
 import { useLang } from '../i18n.jsx';
 import { fmtHM, fmtN, fmtPct } from '../format.js';
@@ -51,24 +52,6 @@ function PesoInner({ data, f, setF }) {
     { key: 'pg', label: L('Votos tardios ÷ vantagem', 'Late votes ÷ margin'), num: true, get: (r) => r.pctGap, render: (r) => pct(r.pctGap), csv: (r) => (r.pctGap * 100).toFixed(4) },
   ];
 
-  const chipsAndState = (
-    <section className="filtros peso-filtros" aria-label={L('Escolha o recorte', 'Choose the view')}>
-      <label>{L('Onde', 'Where')}
-        <select value={f.uf} onChange={(e) => setF({ uf: e.target.value, mun: '' })}>
-          <option value="">{L('Brasil inteiro', 'Whole country')}</option>
-          {data.ufs.filter((u) => data.t2[u]).map((u) => <option key={u} value={u}>{u}</option>)}
-        </select>
-      </label>
-      <div className="limiar">
-        <label htmlFor="lim-peso">{L('Urnas que fecharam às', 'Urnas that closed at')} <strong>{T}</strong> {L('ou depois', 'or later')} <small>({L('Brasília', 'Brasília time')})</small></label>
-        <input id="lim-peso" type="range" min={17 * 60 + 30} max={20 * 60} step={5} value={f.lim} onChange={(e) => setF({ lim: Number(e.target.value) })} />
-        <div className="chips">
-          {CUTS.map((c) => <button key={c} type="button" className={`chip ${f.lim === c ? 'on' : ''}`} onClick={() => setF({ lim: c })}>{fmtHM(c)}</button>)}
-        </div>
-      </div>
-    </section>
-  );
-
   return (
     <div className="stack">
       <h1 className="page-title">{L('Peso dos votos tardios', 'Weight of the late votes')}</h1>
@@ -77,7 +60,7 @@ function PesoInner({ data, f, setF }) {
           'How many votes came in after 5 pm in the urnas that closed late, and how much that weighs in the 2nd round.')}
       </p>
 
-      {chipsAndState}
+      <Filters data={data} f={f} setF={setF} basico />
 
       <section className={`peso-veredito ${s.winner}`} role="status" aria-label={L('Resumo', 'Summary')}>
         <p className="pv-lead">
