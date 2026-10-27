@@ -98,6 +98,16 @@ def main():
             for r in csv.DictReader(f):
                 det[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = r
 
+    # votes after 17:00 BRASÍLIA re-counted with the right clock where the scan used the state's
+    # (Fernando de Noronha's urnas run 1 h ahead of Pernambuco's default; see data/votos_apos_17h_corrigido.csv)
+    fix_path = os.path.join(root, "data", "votos_apos_17h_corrigido.csv")
+    if os.path.exists(fix_path):
+        with open(fix_path, newline="", encoding="utf-8") as f:
+            for r in csv.DictReader(f):
+                row = det.get((r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}"))
+                if row is not None:
+                    row["votos_apos_corte"] = r["votos_apos_17h_brasilia"]
+
     def det_time(r, col, off):
         v = r.get(col) if r else None
         return None if not v else colon(v) - off * 3600

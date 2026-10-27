@@ -9,11 +9,12 @@ import Mapa from './pages/Mapa.jsx';
 import Metodologia from './pages/Metodologia.jsx';
 import Overview from './pages/Overview.jsx';
 import Pontuais from './pages/Pontuais.jsx';
+import Peso from './pages/Peso.jsx';
 import Relatorios from './pages/Relatorios.jsx';
 import Secoes from './pages/Secoes.jsx';
 
 const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc'];
-const PAGES = { '/': Overview, '/mapa': Mapa, '/pontuais': Pontuais, '/explorar': Explorar, '/secoes': Secoes, '/relatorios': Relatorios, '/metodologia': Metodologia };
+const PAGES = { '/': Overview, '/mapa': Mapa, '/pontuais': Pontuais, '/peso': Peso, '/explorar': Explorar, '/secoes': Secoes, '/relatorios': Relatorios, '/metodologia': Metodologia };
 
 // filters live in the URL (#/secoes?uf=SP&lim=1140) so any view can be shared
 const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc });
@@ -55,7 +56,7 @@ export default function App() {
     setTheme(t); setThemeKey((k) => k + 1);
   };
 
-  const NAV = [['/', L('Visão geral', 'Overview')], ['/mapa', L('Mapa', 'Map')], ['/pontuais', L('Fecharam às 17h', 'Closed at 5 pm')], ['/explorar', L('Explorar', 'Explore')],
+  const NAV = [['/', L('Visão geral', 'Overview')], ['/mapa', L('Mapa', 'Map')], ['/pontuais', L('Fecharam às 17h', 'Closed at 5 pm')], ['/peso', L('Peso dos votos', 'Vote weight')], ['/explorar', L('Explorar', 'Explore')],
     ['/secoes', L('Seções', 'Sections')], ['/relatorios', L('Relatórios', 'Reports')], ['/metodologia', L('Metodologia', 'Methodology')]];
   const Page = PAGES[path] || Overview;
   const light = theme === 'light';

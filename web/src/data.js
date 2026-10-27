@@ -6,8 +6,8 @@ const getJson = async (name, optional = false) => {
 };
 
 export async function loadAll() {
-  const [meta, mrows, drows, arows] = await Promise.all([
-    getJson('meta.json'), getJson('municipios.json'), getJson('encerramentos.json'), getJson('alteradas.json', true)]);
+  const [meta, mrows, drows, arows, t2] = await Promise.all([
+    getJson('meta.json'), getJson('municipios.json'), getJson('encerramentos.json'), getJson('alteradas.json', true), getJson('t2.json', true)]);
 
   const mun = mrows.map((r, id) => {
     const o = { id };
@@ -30,7 +30,7 @@ export async function loadAll() {
   });
   const ufs = [...new Set(mun.map((m) => m.uf))].sort();
   const codeByIbge = new Map(mun.filter((m) => m.ibge).map((m) => [m.ibge, m.cod]));
-  return { meta, mun, det, alt, ufs, codeByIbge };
+  return { meta, mun, det, alt, ufs, codeByIbge, t2 };
 }
 
 const geoCache = new Map();

@@ -179,3 +179,12 @@ reads only the logs of the sections that closed late and keeps the time of the l
 25 s (median) before the confirmed closing; 8 of the 6,740 sections confirmed at 18:50 or later have a last "SIM" before
 18:50 or none. `scripts/extrair_urnas_tardias.py` does the same from the public apolinario/urnas-tardias data
 (closing confirmed, `results_tardias/`).
+
+## Weight of the late votes (page "Peso dos votos")
+
+`python scripts/fetch_t2.py` downloads the official 2nd-round result (national and per state, TSE election 6258) into
+`data/t2/resultado_2t.json` / `web/public/data/t2.json`. The page compares the votes recorded after 17:00 Brasília in the
+urnas that closed at/after the chosen time with the total votes and with Lula's margin (4,430,191). Numbers match the
+public apolinario/urnas-tardias data (e.g. 5,052 votes in the 7,353 urnas closed after 17:45).
+`data/votos_apos_17h_corrigido.csv` re-counts 7 Fernando de Noronha sections whose urna clock is 1 h ahead of Pernambuco's
+(the scan had counted from 17:00 on the urna clock, i.e. 16:00 Brasília); `build_site_data.py` applies it.

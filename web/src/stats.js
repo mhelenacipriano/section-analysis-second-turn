@@ -232,3 +232,33 @@ export function missingScenario(early, p) {
 // who leads (most votes among Lula, Flávio and all others together): 'lula' | 'flavio' | 'outros'
 // who has more 1st-round votes, Lula or Flávio (the red/blue of the maps); 'outros' only for an exact tie
 export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outros');
+
+/**
+ * Weight of the votes cast after 17:00 (Brasília) in the urnas that closed at/after the threshold,
+ * against the official 2nd-round result (data.t2: TSE totals per state and national).
+ *   scope '' = Brazil, 'RJ' = one state.  Votes counted in the urna log (va) include blank and null votes,
+ * like the turnout (comparecimento) they are compared with.
+ */
+export function pesoTardio(data, lim, scope = '') {
+  const T = lim * 60;
+  const by = new Map();
+  const get = (uf) => by.get(uf) || by.set(uf, { uf, sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 }).get(uf);
+  for (const m of data.mun) get(m.uf).sections += m.n;
+  for (const d of data.det) {
+    if (d.enc == null || d.enc < T) continue;
+    const u = get(d.mun.uf);
+    u.n++; u.va += d.va; u.l += d.l; u.f += d.f; u.o += d.o;
+  }
+  const make = (acc, t2) => {
+    const margin = t2.lula - t2.flavio;
+    const valid1 = acc.l + acc.f + acc.o;
+    const net = valid1 ? acc.va * ((acc.l - acc.f) / valid1) : 0;       // estimate: late votes split like the section's 1st round
+    return { ...acc, votes: t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
+      pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin),
+      net, netPctGap: net / Math.abs(margin), shareL: valid1 ? acc.l / valid1 : 0, shareF: valid1 ? acc.f / valid1 : 0 };
+  };
+  const states = [...by.values()].filter((u) => data.t2[u.uf]).map((u) => make(u, data.t2[u.uf]));
+  const total = [...by.values()].reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, n: a.n + u.n, va: a.va + u.va, l: a.l + u.l, f: a.f + u.f, o: a.o + u.o }),
+    { uf: '', sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 });
+  return { states, scope: scope ? make(by.get(scope) || { uf: scope, sections: 0, n: 0, va: 0, l: 0, f: 0, o: 0 }, data.t2[scope]) : make(total, data.t2.BR) };
+}
