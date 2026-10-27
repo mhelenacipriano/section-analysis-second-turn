@@ -104,9 +104,15 @@ function ResumoInner({ data, f, setF, go }) {
           </Card>
           <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
             bigSub={L(`vantagem total de ${fmtN(s.gap)} votos`, `total margin of ${fmtN(s.gap)} votes`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
-            {left > 0
-              ? L(`Sem esses votos, a vantagem ainda seria de ${fmtN(left)}.`, `Without these votes, the margin would still be ${fmtN(left)}.`)
-              : L(`Esses votos são maiores que a vantagem de ${W}.`, `These votes are larger than ${W}’s margin.`)}
+            {cedo
+              ? (all.va ? (early.va / all.va > 0.5
+                ? L(`São a maioria dos votos depois das 17h: ${fmtPct(early.va / all.va, 0)} (${fmtN(early.va)} de ${fmtN(all.va)}) foram dados em urnas que fecharam no horário normal.`,
+                  `They are the majority of the votes after 5 pm: ${fmtPct(early.va / all.va, 0)} (${fmtN(early.va)} of ${fmtN(all.va)}) were cast in urnas that closed at the normal time.`)
+                : L(`São ${fmtPct(early.va / all.va, 0)} dos votos depois das 17h (${fmtN(early.va)} de ${fmtN(all.va)}); o resto foi dado em urnas que fecharam tarde.`,
+                  `They are ${fmtPct(early.va / all.va, 0)} of the votes after 5 pm (${fmtN(early.va)} of ${fmtN(all.va)}); the rest was cast in urnas that closed late.`)) : '–')
+              : left > 0
+                ? L(`Sem esses votos, a vantagem ainda seria de ${fmtN(left)}.`, `Without these votes, the margin would still be ${fmtN(left)}.`)
+                : L(`Esses votos são maiores que a vantagem de ${W}.`, `These votes are larger than ${W}’s margin.`)}
           </Card>
         </div>
       </section>
