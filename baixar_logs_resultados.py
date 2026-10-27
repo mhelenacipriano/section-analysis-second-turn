@@ -283,6 +283,8 @@ RESULT_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "hora_cor
                  "votos_no_dia", "votos_apos_corte", "primeiro_voto_apos_corte", "ultimo_voto"]
 ENC_FIELDS = ["uf", "municipio", "nome_municipio", "zona", "secao", "votos_no_dia", "votos_apos_corte",
               "ultimo_voto", "encerrar_selecionado", "encerramento_confirmado", "inicio_encerramento"]
+# --evento sim: the same plus the time of the operator's "Todas as pessoas presentes já votaram? SIM"
+ENC_FIELDS_SIM = ENC_FIELDS[:9] + ["todos_votaram_sim"] + ENC_FIELDS[9:]
 PROBLEM_FIELDS = ["municipio", "zona", "secao", "problema", "tentativas", "indice"]
 FLUSH_EVERY = 500       # sections
 RATE_WINDOW = 200       # sections looked at by the 429 check
@@ -407,13 +409,23 @@ def main():
                          "failures (429, network) do not count")
     ap.add_argument("--encerramento", action="store_true",
                     help="scan the closing sequence of each urna instead of the late votes")
+    ap.add_argument("--evento", choices=("conf", "sim"), default="conf",
+                    help="--encerramento: which log line gives the closing time. conf = 'Procedimento de "
+                         "encerramento confirmado' (default); sim = 'Todas as pessoas presentes já "
+                         "votaram? SIM' (its own state_sim/ and results_sim/)")
+    ap.add_argument("--so-secoes", metavar="CSV",
+                    help="only check the sections listed in this CSV (columns uf, municipio, zona, "
+                         "secao), e.g. results_enc/encerramentos_BR.csv: the sections that closed late. "
+                         "Never marks the state complete.")
     ap.add_argument("--hora-registro", default="17:30", metavar="HH:MM",
                     help="--encerramento: sections closing at/after this Brasília time get a row")
     ap.add_argument("--state-dir")
     ap.add_argument("--results-dir")
     args = ap.parse_args()
-    args.state_dir = args.state_dir or ("state_enc" if args.encerramento else "state")
-    args.results_dir = args.results_dir or ("results_enc" if args.encerramento else "results")
+    sim = args.evento == "sim"
+    args.encerramento = args.encerramento or sim
+    args.state_dir = args.state_dir or ("state_sim" if sim else "state_enc" if args.encerramento else "state")
+    args.results_dir = args.results_dir or ("results_sim" if sim else "results_enc" if args.encerramento else "results")
     uf = args.uf.upper()
     started = time.monotonic()
     deadline = started + args.max_minutes * 60 if args.max_minutes else None
@@ -430,6 +442,12 @@ def main():
             print(f"{cd}  {nm}  ({n} seções)")
         return
 
+    only = None
+    if args.so_secoes:
+        with open(args.so_secoes, newline="", encoding="utf-8") as fh:
+            only = {f"{r['municipio']},{r['zona']},{r['secao']}" for r in csv.DictReader(fh) if r["uf"] == uf}
+        sections = [s for s in sections if key_of(s) in only]
+        print(f"--so-secoes: {len(sections)} of the listed {len(only)} sections found in the {uf} index")
     if args.municipio:
         sections = [s for s in sections if s["mun"] == args.municipio.zfill(5)]
         if not sections:
@@ -446,8 +464,8 @@ def main():
         record_cut = reg if args.hora_local else local_cutoff(reg, uf)
         print(f"closing times: rows for sections closed at/after {record_cut:%H:%M} on {uf} urna clocks")
     progress = Progress(uf, args.state_dir, args.results_dir,
-                        "encerramentos" if args.encerramento else "secoes_apos_17h",
-                        ENC_FIELDS if args.encerramento else RESULT_FIELDS)
+                        "todos_votaram" if sim else "encerramentos" if args.encerramento else "secoes_apos_17h",
+                        (ENC_FIELDS_SIM if sim else ENC_FIELDS) if args.encerramento else RESULT_FIELDS)
     merged = [s for s in sections if s["agregada_a"]]
     sections = [s for s in sections if not s["agregada_a"]]
     if merged:
@@ -521,7 +539,7 @@ def main():
                 total, late, first_late, last_vote = res[:4]
                 progress.clear_problem(key)
                 if args.encerramento:
-                    conf = res[4]["conf"]
+                    conf = res[4][args.evento]       # closing time by the chosen log line
                     progress.add_done(key, conf.strftime("%H%M%S") if conf else "-")
                     if conf is None or conf >= record_cut:
                         found += 1
@@ -531,8 +549,9 @@ def main():
                             "zona": s["zona"], "secao": s["secao"], "votos_no_dia": total,
                             "votos_apos_corte": late, "ultimo_voto": hms(last_vote),
                             "encerrar_selecionado": hms(res[4]["sel"]),
-                            "encerramento_confirmado": hms(conf),
+                            "encerramento_confirmado": hms(res[4]["conf"]),
                             "inicio_encerramento": hms(res[4]["ini"]),
+                            **({"todos_votaram_sim": hms(res[4]["sim"])} if sim else {}),
                         })
                     late = 0   # rows were handled above
                 else:
@@ -587,7 +606,7 @@ def main():
     elif remaining:
         print(f"{len(remaining)} sections failed this run; they will be retried next run "
               f"(see {progress.problems_path}).")
-    elif not args.municipio:
+    elif not args.municipio and not args.so_secoes:
         progress.mark_complete()
         print(f"Nothing left to check in {uf}: wrote {progress.complete_path}"
               + (f" ({len(pending) - len(todo)} sections given up, see {progress.problems_path})"
