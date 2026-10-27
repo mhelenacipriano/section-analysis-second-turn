@@ -7,11 +7,10 @@ import { DEFAULT_LIM, readFilters } from './stats.js';
 import Mapa from './pages/Mapa.jsx';
 import Metodologia from './pages/Metodologia.jsx';
 import Overview from './pages/Overview.jsx';
-import Peso from './pages/Peso.jsx';
 import Secoes from './pages/Secoes.jsx';
 
 const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc'];
-const PAGES = { '/': Overview, '/mapa': Mapa, '/peso': Peso, '/secoes': Secoes, '/metodologia': Metodologia };
+const PAGES = { '/': Overview, '/mapa': Mapa, '/peso': Overview, '/secoes': Secoes, '/metodologia': Metodologia };
 
 // filters live in the URL (#/secoes?uf=SP&lim=1140) so any view can be shared
 const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc });
@@ -34,7 +33,7 @@ export default function App() {
   useEffect(() => { window.scrollTo(0, 0); setMenu(false); }, [path]);
   useEffect(() => {
     document.documentElement.lang = lang === 'en' ? 'en' : 'pt-BR';
-    document.title = L('Seções que fecharam às 19h · 2º turno 2026', 'Sections closed around 7 pm · 2026 runoff');
+    document.title = L('Votos tardios · 2º turno 2026', 'Late votes · 2026 runoff');
   }, [lang, L]);
 
   const qk = JSON.stringify(query);
@@ -53,7 +52,7 @@ export default function App() {
     setTheme(t); setThemeKey((k) => k + 1);
   };
 
-  const NAV = [['/', L('Resumo', 'Summary')], ['/mapa', L('Mapa', 'Map')], ['/peso', L('Peso dos votos', 'Vote weight')], ['/secoes', L('Seções', 'Sections')], ['/metodologia', L('Metodologia', 'Methodology')]];
+  const NAV = [['/', L('Resumo', 'Summary')], ['/mapa', L('Mapa', 'Map')], ['/secoes', L('Seções', 'Sections')], ['/metodologia', L('Metodologia', 'Methodology')]];
   const Page = PAGES[path] || Overview;
   const light = theme === 'light';
   return (
@@ -61,7 +60,7 @@ export default function App() {
       <div className="app">
         <a className="skip" href="#conteudo">{L('Pular para o conteúdo', 'Skip to content')}</a>
         <header className="topbar">
-          <button type="button" className="brand" onClick={() => nav('/')}>{L('Seções das 19h · 2º turno 2026', 'Sections around 7 pm · 2026 runoff')}</button>
+          <button type="button" className="brand" onClick={() => nav('/')}>{L('Votos tardios · 2º turno 2026', 'Late votes · 2026 runoff')}</button>
           <div className="ctrls">
             <div className="lang" role="group" aria-label="Idioma / Language">
               {[['pt', 'PT'], ['en', 'EN']].map(([k, label]) => (
