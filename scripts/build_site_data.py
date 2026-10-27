@@ -98,23 +98,14 @@ def main():
             for r in csv.DictReader(f):
                 det[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = r
 
-    # votes after 17:00 BRASÍLIA re-counted with the right clock where the scan used the state's
-    # (Fernando de Noronha's urnas run 1 h ahead of Pernambuco's default; see data/votos_apos_17h_corrigido.csv)
-    # va_old: votes after 17:00 of EVERY section that had any (first vote scan, results/secoes_apos_17h_<UF>.csv);
-    # the late-closing sections also carry it in their detail row. The re-count overrides both.
-    va_old = {}
-    for p in glob.glob(os.path.join(root, "results", "secoes_apos_17h_[A-Z][A-Z].csv")):
-        with open(p, newline="", encoding="utf-8") as f:
+    # votes at/after 17:30 BRASÍLIA (the site's "late vote" cut-off): scripts/votos_apos_1730.py reads the logs of
+    # every section whose last vote is at/after 17:30; any other section has none
+    va30 = {}
+    p30 = os.path.join(root, "data", "votos_apos_1730.csv")
+    if os.path.exists(p30):
+        with open(p30, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
-                va_old[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = int(r["votos_apos_corte"])
-    fix_path = os.path.join(root, "data", "votos_apos_17h_corrigido.csv")
-    if os.path.exists(fix_path):
-        with open(fix_path, newline="", encoding="utf-8") as f:
-            for r in csv.DictReader(f):
-                k = (r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")
-                va_old[k] = int(r["votos_apos_17h_brasilia"])
-                if k in det:
-                    det[k]["votos_apos_corte"] = r["votos_apos_17h_brasilia"]
+                va30[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = int(r["votos_apos_1730"])
 
     def det_time(r, col, off):
         v = r.get(col) if r else None
@@ -130,10 +121,11 @@ def main():
         uni.at[i, "sel"] = det_time(r, "encerrar_selecionado", off)
         uni.at[i, "ini"] = det_time(r, "inicio_encerramento", off)
         uni.at[i, "ult"] = det_time(r, "ultimo_voto", off)
-        uni.at[i, "vd"] = int(r["votos_no_dia"]); uni.at[i, "va"] = int(r["votos_apos_corte"])
+        uni.at[i, "vd"] = int(r["votos_no_dia"])
     uni["registrar"] = uni.enc.isna() | (uni.enc.fillna(0) >= RECORD_FROM)
-    # votes after 17:00 in the sections that closed on time (before 17:30): the people still in line at 17:00
-    uni["va0"] = [0 if reg else va_old.get((u, k), 0) for reg, u, k in zip(uni.registrar, uni.uf, uni.key)]
+    uni["va"] = [va30.get((u, k), 0) for u, k in zip(uni.uf, uni.key)]               # votes at/after 17:30
+    # ... of which in the sections that closed before 17:30 (a vote after the confirmed closing cannot exist: ~0)
+    uni["va0"] = [0 if reg else v for reg, v in zip(uni.registrar, uni.va)]
 
     # --- municipalities --------------------------------------------------------------------
     xw = pd.read_csv(os.path.join(root, "data", "tse_ibge.csv"), dtype=str)

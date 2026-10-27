@@ -9,7 +9,7 @@ import { pesoTardio } from '../stats.js';
 const CUTS = [17 * 60 + 30, 17 * 60 + 45, 18 * 60, 18 * 60 + 30, 18 * 60 + 50, 19 * 60];
 const EARLY = 17 * 60 + 30;
 // a share this small needs more decimals to be read at all
-const pct = (x) => fmtPct(x, x < 0.0001 ? 4 : x < 0.01 ? 3 : 2);
+const pct = (x) => (x === 0 ? '0%' : fmtPct(x, x < 0.0001 ? 4 : x < 0.01 ? 3 : 2));
 const winnerName = (k) => (k === 'lula' ? 'Lula' : 'Flávio Bolsonaro');
 
 /** A bar on its own scale: the filled part is `share` of the track (never thinner than a visible sliver). */
@@ -51,7 +51,7 @@ function ResumoInner({ data, f, setF, go }) {
   const columns = [
     { key: 'uf', label: L('UF', 'State'), get: (r) => r.uf },
     { key: 'n', label: cedo ? L('Urnas fechadas antes das 17:30', 'Urnas closed before 17:30') : L('Urnas fechadas tarde', 'Urnas closed late'), num: true, get: (r) => r.n, render: (r) => `${fmtN(r.n)} (${fmtPct(r.pctSections, 2)})`, csv: (r) => r.n },
-    { key: 'va', label: L('Votos depois das 17h', 'Votes after 5 pm'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
+    { key: 'va', label: L('Votos depois das 17:30', 'Votes after 5:30 pm'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
     { key: 'pv', label: L('% dos votos do estado', '% of the state’s votes'), num: true, get: (r) => r.pctVotes, render: (r) => pct(r.pctVotes), csv: (r) => (r.pctVotes * 100).toFixed(4) },
     { key: 'w', label: L('Venceu o estado (2º turno)', 'Won the state (2nd round)'), get: (r) => winnerName(r.winner), render: (r) => <span className={`chip-venc ${r.winner}`}>{winnerName(r.winner)}</span> },
     { key: 'g', label: L('Vantagem do vencedor', 'Winner’s margin'), num: true, get: (r) => r.gap, render: (r) => fmtN(r.gap) },
@@ -70,10 +70,10 @@ function ResumoInner({ data, f, setF, go }) {
     <div className="stack">
       <header className="hero">
         <p className="eyebrow">{L('2º turno de 2026 · 25 de outubro', '2026 runoff · October 25')}</p>
-        <h1>{L('Quanto pesaram os votos depois das 17h?', 'How much did the votes after 5 pm weigh?')}</h1>
+        <h1>{L('Quanto pesaram os votos depois das 17:30?', 'How much did the votes after 5:30 pm weigh?')}</h1>
         <p className="hero-sub">
-          {L('Algumas urnas ficaram abertas até as 19h. Quantos votos entraram depois das 17h nelas, e quanto isso pesa no total de votos e na diferença entre o vencedor e o perdedor.',
-            'Some urnas stayed open until 7 pm. How many votes came in after 5 pm in them, and how much that weighs against all votes and against the gap between winner and loser.')}
+          {L('Algumas urnas ficaram abertas até as 19h. Quantos votos entraram depois das 17:30 nelas, e quanto isso pesa no total de votos e na diferença entre o vencedor e o perdedor.',
+            'Some urnas stayed open until 7 pm. How many votes came in after 5:30 pm in them, and how much that weighs against all votes and against the gap between winner and loser.')}
         </p>
       </header>
 
@@ -85,8 +85,8 @@ function ResumoInner({ data, f, setF, go }) {
             <span className="selo">{L('✓ Fecharam no horário normal', '✓ Closed at the normal time')}</span>
             <p className="pv-lead">
               {L(
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam no horário, antes das 17:30. Elas reuniram <strong>{fmtN(s.inGroup)} votos</strong>, quase todos os votos do 2º turno. Só <strong>{fmtN(s.va)}</strong> foram dados depois das 17h, por eleitores que já estavam na fila.</>,
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed on time, before 17:30. They held <strong>{fmtN(s.inGroup)} votes</strong>, almost all the votes of the 2nd round. Only <strong>{fmtN(s.va)}</strong> were cast after 5 pm, by voters already in line.</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam no horário, antes das 17:30. Elas reuniram <strong>{fmtN(s.inGroup)} votos</strong>, quase todos os votos do 2º turno. {s.va ? <>Só <strong>{fmtN(s.va)}</strong> foram dados depois das 17:30.</> : <><strong>Nenhum voto</strong> foi dado depois das 17:30: essas urnas já tinham fechado.</>}</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed on time, before 17:30. They held <strong>{fmtN(s.inGroup)} votes</strong>, almost all the votes of the 2nd round. {s.va ? <>Only <strong>{fmtN(s.va)}</strong> were cast after 5:30 pm.</> : <><strong>No vote</strong> was cast after 5:30 pm: these urnas had already closed.</>}</>,
               )}
             </p>
             <div className="pv-nums">
@@ -113,8 +113,8 @@ function ResumoInner({ data, f, setF, go }) {
           <section className={`peso-veredito ${s.winner}`} role="status" aria-label={L('Resumo', 'Summary')}>
             <p className="pv-lead">
               {L(
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam {when}. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17h.</>,
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed {when}. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5 pm.</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam {when}. Nelas, <strong>{fmtN(s.va)} votos</strong> foram dados depois das 17:30.</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed {when}. In them, <strong>{fmtN(s.va)} votes</strong> were cast after 5:30 pm.</>,
               )}
             </p>
             <div className="pv-nums">
@@ -151,7 +151,7 @@ function ResumoInner({ data, f, setF, go }) {
         <div className="tabela-scroll">
           <table>
             <thead><tr>
-              <th>{L('Horário de encerramento', 'Closing time')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Votos depois das 17h', 'Votes after 5 pm')}</th>
+              <th>{L('Horário de encerramento', 'Closing time')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Votos depois das 17:30', 'Votes after 5:30 pm')}</th>
               <th className="num">{L('% dos votos', '% of votes')}</th><th className="num">{L('% da vantagem', '% of the margin')}</th></tr></thead>
             <tbody>
               {line('all', L('Todas as urnas (total)', 'All urnas (total)'), all, { strong: true })}
@@ -176,8 +176,8 @@ function ResumoInner({ data, f, setF, go }) {
         <button type="button" className="btn" onClick={() => go('/secoes')}>{L('Ver a lista de seções', 'See the list of sections')}</button>
       </p>
 
-      <Note>{L('“Votos depois das 17h” incluem quem já estava na fila às 17h, o que é permitido. Totais do 2º turno: oficiais do TSE. Mede tamanho, não prova irregularidade.',
-        '“Votes after 5 pm” include people already in line at 5 pm, which is allowed. 2nd-round totals: official TSE. This measures size; it does not prove irregularity.')}</Note>
+      <Note>{L('A votação deveria acabar às 17h, mas quem já estava na fila podia votar. Aqui só contamos os votos depois das 17:30. Totais do 2º turno: oficiais do TSE. Mede tamanho, não prova irregularidade.',
+        'Voting was due to end at 5 pm, but people already in line could vote. Here we only count votes after 5:30 pm. 2nd-round totals: official TSE. This measures size; it does not prove irregularity.')}</Note>
     </div>
   );
 }

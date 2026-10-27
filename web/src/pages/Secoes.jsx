@@ -24,7 +24,7 @@ export default function Secoes({ data, f, setF }) {
     { key: 'zona', label: L('Zona', 'Zone'), num: true, get: (r) => r.zona },
     { key: 'secao', label: L('Seção', 'Section'), num: true, get: (r) => r.secao },
     { key: 'enc', label: L('Encerramento (Brasília)', 'Closing (Brasília time)'), num: true, get: (r) => r.enc, render: (r) => (r.enc == null ? <em>{noRec}</em> : fmtTime(r.enc)), csv: (r) => (r.enc == null ? '' : fmtTime(r.enc)) },
-    { key: 'va', label: L('Votos depois das 17h', 'Votes after 17:00'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
+    { key: 'va', label: L('Votos depois das 17:30', 'Votes after 17:30'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
     { key: 'lp', label: L('Lula, % válidos', 'Lula, % valid'), num: true, get: (r) => pct(r.l, val(r)), render: (r) => fmtPct(pct(r.l, val(r))), csv: (r) => pct(r.l, val(r))?.toFixed(4) },
     { key: 'fp', label: L('Flávio, % válidos', 'Flávio, % valid'), num: true, get: (r) => pct(r.f, val(r)), render: (r) => fmtPct(pct(r.f, val(r))), csv: (r) => pct(r.f, val(r))?.toFixed(4) },
     { key: 'v', label: L('Venceu no 1º turno', 'Won the 1st round'), get: (r) => catLabel(category(r.v), L), render: (r) => <span className={`chip-venc ${category(r.v)}`}>{catLabel(category(r.v), L)}</span> },

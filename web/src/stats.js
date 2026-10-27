@@ -2,7 +2,7 @@
 //   v = winner of the 1st turn (13 Lula, 22 Flávio, 0 tie, anything else = another candidate)
 //   l, f, o, b, n = votes for Lula, Flávio, other candidates, blank, null; ap = eligible, cp = turnout
 //   enc = time the urna CONFIRMED the closing of voting, seconds since midnight, Brasília time
-//         (null = the log has no closing record); ult = last vote; va = votes after 17h
+//         (null = the log has no closing record); ult = last vote; va = votes at/after 17:30
 export const LULA = 13;
 export const FLAVIO = 22;
 export const DEFAULT_LIM = 18 * 60 + 50;     // "closed around 19h": from 18:50 Brasília, in minutes since midnight
@@ -113,7 +113,7 @@ export function byUnit(data, lim, key, alt = false) {
 export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outros');
 
 /**
- * Weight of the votes cast after 17:00 (Brasília) against the official 2nd-round result
+ * Weight of the votes cast at/after 17:30 (Brasília) against the official 2nd-round result
  * (data.t2: TSE totals per state and national). The urnas are split by closing time:
  *   early  closed before 17:30 (no detail row)      mid/late  closed at/after 17:30 (or without a record)
  * and `lim` picks the late group (closed at/after lim); `cedo` picks the early group instead.

@@ -12,8 +12,8 @@ export default function Metodologia({ data }) {
         <ul>
           <li>{L(<><strong>Encerramento.</strong> Cada urna grava um log. Usamos a hora da última linha “Procedimento de encerramento confirmado” do dia 25/10/2026, convertida para o horário de Brasília. Não é a hora do último voto.</>,
             <><strong>Closing.</strong> Each urna writes a log. We use the time of the last “Procedimento de encerramento confirmado” line on 25/10/2026, converted to Brasília time. It is not the time of the last vote.</>)}</li>
-          <li>{L(<><strong>Votos depois das 17h.</strong> Linhas “O voto do eleitor foi computado” a partir das 17h de Brasília, nas urnas que fecharam no horário escolhido. Inclui quem já estava na fila às 17h.</>,
-            <><strong>Votes after 5 pm.</strong> “O voto do eleitor foi computado” lines from 5 pm Brasília time, in the urnas that closed at the chosen time. It includes people already in line at 5 pm.</>)}</li>
+          <li>{L(<><strong>Votos depois das 17:30.</strong> Linhas “O voto do eleitor foi computado” a partir das 17:30 de Brasília. A votação deveria acabar às 17h, mas quem já estava na fila podia votar; por isso só contamos o que veio depois das 17:30.</>,
+            <><strong>Votes after 5:30 pm.</strong> “O voto do eleitor foi computado” lines from 5:30 pm Brasília time. Voting was due to end at 5 pm, but people already in line could vote; so we only count what came after 5:30 pm.</>)}</li>
           <li>{L(<><strong>1º turno.</strong> Votos por seção do TSE. “Venceu” é quem teve mais votos na seção.</>,
             <><strong>1st round.</strong> TSE votes by section. “Won” is whoever had the most votes in the section.</>)}</li>
           <li>{L(<><strong>2º turno.</strong> Totais oficiais do TSE por estado e do país (incluem o exterior). A “vantagem” é Lula menos Flávio.</>,
