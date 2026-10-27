@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
 import MapView, { ramp } from '../components/MapView.jsx';
-import { winnerName } from '../components/OnTimeMap.jsx';
 import { Filters } from '../components/Filters.jsx';
 import { Note, StackBar, Stat } from '../components/ui.jsx';
 import { loadGeo } from '../data.js';
@@ -25,6 +24,7 @@ const classOf = (sc, x) => sc.breaks.filter((b) => x > b).length;
 const tOf = (sc, i) => (sc.n <= 1 ? 1 : T_MIN + (1 - T_MIN) * (i / (sc.n - 1)));
 const pctText = (x) => fmtPct(x, x < 0.001 ? 3 : 2);   // tiny shares need a third decimal to tell the classes apart
 
+const winnerName = (k, L) => ({ lula: 'Lula', flavio: 'Flávio Bolsonaro', outros: L('Empate', 'Tie') }[k]);
 const MIN_SECTIONS = 30;   // municipality ranking: ignore places too small for a percentage to mean anything
 
 /**
@@ -117,11 +117,8 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
       <h1 className="page-title">{L('Mapa', 'Map')}</h1>
       <p className="sub">
         {vista === 'pct'
-          ? L(`Os ${unitWord} onde mais seções fecharam às ${T} ou depois: quanto mais escuro, maior a porcentagem das seções do lugar. Não depende de quem venceu.`,
-            `The ${unitWord} where the most sections closed at ${T} or later: the darker, the larger the share of that place’s sections. It does not depend on who won.`)
-          : L(`Todos os ${unitWord} com seções encerradas às ${T} ou depois, coloridos pela comparação dos votos de Lula e Flávio Bolsonaro no 1º turno: vermelho = Lula teve mais votos, azul = Flávio teve mais votos.`,
-            `All ${unitWord} with sections closed at ${T} or later, coloured by comparing Lula’s and Flávio Bolsonaro’s 1st-round votes: red = Lula had more votes, blue = Flávio had more votes.`)}
-        {' '}{f.uf ? L('Clique num município para filtrar.', 'Click a municipality to filter.') : L('Clique num estado para ver os municípios.', 'Click a state to see its municipalities.')}
+          ? L(`Quanto mais escuro, maior a % das seções do lugar que fecharam às ${T} ou depois.`, `The darker, the larger the share of the place’s sections that closed at ${T} or later.`)
+          : L('Vermelho: Lula teve mais votos no 1º turno. Azul: Flávio.', 'Red: Lula had more 1st-round votes. Blue: Flávio.')}
       </p>
       <Filters data={data} f={f} setF={setF} />
 
@@ -152,7 +149,7 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
           {!geo && !err && <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
           {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} colorOf={colorOf} tagOf={tagOf} max={1} selected={selected} focus={f.mun ? selected : null}
             onPick={onPick} themeKey={themeKey} plain={level === 'uf'} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
-          {level === 'uf' && <p className="hint">{L(`O número em cada estado é a porcentagem das suas seções encerradas às ${T} ou depois. Passe o mouse num estado para ver o total; clique ou toque para ver os municípios.`, `The number on each state is the share of its sections closed at ${T} or later. Hover a state to see the total; click or tap to see its municipalities.`)}</p>}
+          {level === 'uf' && <p className="hint">{L('Clique num estado para ver os municípios.', 'Click a state to see its municipalities.')}</p>}
           {vista === 'pct' && (
             <div className="escala" role="img" aria-label={L('Legenda das cores, de menos a mais seções', 'Colour legend, from fewer to more sections')}>
               <span>{L('menos', 'less')}</span>

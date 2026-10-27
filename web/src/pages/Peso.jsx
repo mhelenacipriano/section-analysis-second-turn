@@ -73,8 +73,8 @@ function PesoInner({ data, f, setF }) {
     <div className="stack">
       <h1 className="page-title">{L('Peso dos votos tardios', 'Weight of the late votes')}</h1>
       <p className="sub">
-        {L('Quantos votos entraram depois das 17h nas urnas que fecharam tarde, e quanto isso pesa no resultado oficial do 2º turno.',
-          'How many votes came in after 5 pm in the urnas that closed late, and how much that weighs in the official 2nd-round result.')}
+        {L('Quantos votos entraram depois das 17h nas urnas que fecharam tarde, e quanto isso pesa no 2º turno.',
+          'How many votes came in after 5 pm in the urnas that closed late, and how much that weighs in the 2nd round.')}
       </p>
 
       {chipsAndState}
@@ -96,53 +96,23 @@ function PesoInner({ data, f, setF }) {
         <div className="pcards">
           <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={pct(s.pctSections)}
             bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
-            {L(`Quase todas as urnas fecharam no horário normal. Só estas ficaram abertas até as ${T} ou depois.`,
-              `Almost every urna closed at the normal time. Only these stayed open until ${T} or later.`)}
+            {L(`Quase todas fecharam no horário normal.`, `Almost all closed at the normal time.`)}
           </Card>
           <Card n="2" kicker={L('Dos votos', 'Of the votes')} big={pct(s.pctVotes)}
             bigSub={L(`${fmtN(s.va)} de ${fmtN(s.votes)} votos`, `${fmtN(s.va)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctVotes} />}>
-            {oneIn ? L(`Cerca de 1 voto em cada ${fmtN(oneIn)} do 2º turno em ${where} foi dado depois das 17h nessas urnas.`,
-              `About 1 vote in every ${fmtN(oneIn)} of the 2nd round in ${where} was cast after 5 pm in those urnas.`) : '–'}
+            {oneIn ? L(`1 voto em cada ${fmtN(oneIn)}.`, `1 vote in every ${fmtN(oneIn)}.`) : '–'}
           </Card>
           <Card n="3" kicker={L(`Da vantagem de ${W}`, `Of ${W}’s margin`)} big={pct(s.pctGap)}
             bigSub={L(`vantagem de ${fmtN(s.gap)} votos`, `margin of ${fmtN(s.gap)} votes`)} meter={<Meter share={s.pctGap} tone={s.winner} />}>
             {left > 0
-              ? L(`Mesmo que todos esses votos fossem de ${W} e desaparecessem, a vantagem ainda seria de ${fmtN(left)} votos.`,
-                `Even if all of those votes were ${W}’s and vanished, the margin would still be ${fmtN(left)} votes.`)
-              : L(`Esses votos são maiores que a vantagem de ${W} em ${where}.`, `Those votes are larger than ${W}’s margin in ${where}.`)}
-          </Card>
-          <Card n="4" kicker={L('Estimativa pelo 1º turno', 'Estimate from the 1st round')}
-            big={`${s.net >= 0 ? '+' : '−'}${fmtN(Math.abs(s.net))}`}
-            bigSub={L(`votos líquidos a favor de ${s.net >= 0 ? 'Lula' : 'Flávio'} (${pct(Math.abs(s.netPctGap))} da vantagem)`, `net votes for ${s.net >= 0 ? 'Lula' : 'Flávio'} (${pct(Math.abs(s.netPctGap))} of the margin)`)}
-            meter={<Meter share={Math.abs(s.netPctGap)} tone={s.net >= 0 ? 'lula' : 'flavio'} />}>
-            {L(`Suposição: quem votou tarde votou como a própria seção no 1º turno (Lula ${pct(s.shareL)} × Flávio ${pct(s.shareF)} dos votos válidos nessas urnas). É uma estimativa, não um dado.`,
-              `Assumption: late voters voted like their own section did in the 1st round (Lula ${pct(s.shareL)} × Flávio ${pct(s.shareF)} of the valid votes in those urnas). It is an estimate, not data.`)}
+              ? L(`Sem esses votos, a vantagem ainda seria de ${fmtN(left)}.`, `Without these votes, the margin would still be ${fmtN(left)}.`)
+              : L(`Esses votos são maiores que a vantagem de ${W}.`, `These votes are larger than ${W}’s margin.`)}
           </Card>
         </div>
       </section>
 
-      <section className="story" aria-labelledby="escala">
-        <h2 id="escala">{L('Na mesma escala', 'On the same scale')}</h2>
-        <ol className="escala-barras">
-          {[
-            [L(`Votos do 2º turno em ${where}`, `2nd-round votes in ${where}`), s.votes, 1, 'neutro'],
-            [L(`Vantagem de ${W}`, `${W}’s margin`), s.gap, s.gap / s.votes, s.winner],
-            [L('Votos depois das 17h nessas urnas', 'Votes after 5 pm in those urnas'), s.va, s.va / s.votes, 'fecha'],
-          ].map(([label, v, share, tone]) => (
-            <li key={label}>
-              <div className="eb-top"><span>{label}</span><b>{fmtN(v)}</b></div>
-              <div className="eb-track"><i className={tone} style={{ width: `${Math.max(share * 100, 0.4)}%` }} /></div>
-            </li>
-          ))}
-        </ol>
-        <Note>{L('As três barras usam a mesma régua. A última é fina porque o número é pequeno perto das outras, não porque o gráfico esteja cortado.',
-          'All three bars use the same ruler. The last one is thin because the number is small next to the others, not because the chart is cut.')}</Note>
-      </section>
-
       <section className="story" aria-labelledby="cortes">
         <h2 id="cortes">{L('E se o horário de corte mudar?', 'What if the cut-off time changes?')}</h2>
-        <p className="story-intro">{L(`Cada linha conta as urnas que fecharam naquele horário ou depois (${where}). Clique numa linha para usar esse horário.`,
-          `Each row counts the urnas that closed at that time or later (${where}). Click a row to use that time.`)}</p>
         <div className="tabela-scroll">
           <table>
             <thead><tr>
@@ -162,18 +132,12 @@ function PesoInner({ data, f, setF }) {
 
       <section className="story" aria-labelledby="ufs">
         <h2 id="ufs">{L('Por estado', 'By state')}</h2>
-        <p className="story-intro">{L(`Estados com urnas fechadas às ${T} ou depois. O peso é medido contra os votos e a vantagem do próprio estado. Clique numa linha para ver só esse estado.`,
-          `States with urnas closed at ${T} or later. The weight is measured against the state’s own votes and margin. Click a row to see only that state.`)}</p>
         <DataTable rows={rows} columns={columns} csvName={`peso_votos_tardios_${f.lim}.csv`} initialSort={{ key: 'pv', dir: 'desc' }} pageSize={30}
           onRow={(r) => setF({ uf: r.uf })} />
       </section>
 
-      <Note>
-        {L(
-          <>“Votos depois das 17h” são os votos que a urna registrou a partir das 17h (horário de Brasília) nas urnas que fecharam no horário escolhido. Incluem eleitores que já estavam na fila às 17h, que podem votar normalmente. Os totais do 2º turno (votos, Lula, Flávio) são os oficiais do TSE e incluem o exterior; “votos” é o comparecimento, com brancos e nulos, como nos logs. Esta página mede tamanho, não prova irregularidade.</>,
-          <>“Votes after 5 pm” are the votes the urna recorded from 5 pm (Brasília time) on, in the urnas that closed at the chosen time. They include voters who were already in line at 5 pm, who may vote normally. The 2nd-round totals (votes, Lula, Flávio) are the official TSE figures and include the overseas vote; “votes” is the turnout, with blank and null votes, as in the logs. This page measures size; it does not prove any irregularity.</>,
-        )}
-      </Note>
+      <Note>{L('“Votos depois das 17h” incluem quem já estava na fila às 17h, o que é permitido. Totais do 2º turno: oficiais do TSE. Mede tamanho, não prova irregularidade.',
+        '“Votes after 5 pm” include people already in line at 5 pm, which is allowed. 2nd-round totals: official TSE. This measures size; it does not prove irregularity.')}</Note>
     </div>
   );
 }

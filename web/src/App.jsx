@@ -4,17 +4,14 @@ import { setLocale } from './format.js';
 import { LangContext, detectLang, makeL } from './i18n.jsx';
 import { useRoute } from './router.js';
 import { DEFAULT_LIM, readFilters } from './stats.js';
-import Explorar from './pages/Explorar.jsx';
 import Mapa from './pages/Mapa.jsx';
 import Metodologia from './pages/Metodologia.jsx';
 import Overview from './pages/Overview.jsx';
-import Pontuais from './pages/Pontuais.jsx';
 import Peso from './pages/Peso.jsx';
-import Relatorios from './pages/Relatorios.jsx';
 import Secoes from './pages/Secoes.jsx';
 
 const FILTER_KEYS = ['uf', 'mun', 'lim', 'alt', 'venc'];
-const PAGES = { '/': Overview, '/mapa': Mapa, '/pontuais': Pontuais, '/peso': Peso, '/explorar': Explorar, '/secoes': Secoes, '/relatorios': Relatorios, '/metodologia': Metodologia };
+const PAGES = { '/': Overview, '/mapa': Mapa, '/peso': Peso, '/secoes': Secoes, '/metodologia': Metodologia };
 
 // filters live in the URL (#/secoes?uf=SP&lim=1140) so any view can be shared
 const toQuery = (f, keep) => ({ ...keep, uf: f.uf, mun: f.mun, lim: f.lim === DEFAULT_LIM ? '' : String(f.lim), alt: f.alt, venc: f.venc });
@@ -56,8 +53,7 @@ export default function App() {
     setTheme(t); setThemeKey((k) => k + 1);
   };
 
-  const NAV = [['/', L('Visão geral', 'Overview')], ['/mapa', L('Mapa', 'Map')], ['/pontuais', L('Fecharam às 17h', 'Closed at 5 pm')], ['/peso', L('Peso dos votos', 'Vote weight')], ['/explorar', L('Explorar', 'Explore')],
-    ['/secoes', L('Seções', 'Sections')], ['/relatorios', L('Relatórios', 'Reports')], ['/metodologia', L('Metodologia', 'Methodology')]];
+  const NAV = [['/', L('Resumo', 'Summary')], ['/mapa', L('Mapa', 'Map')], ['/peso', L('Peso dos votos', 'Vote weight')], ['/secoes', L('Seções', 'Sections')], ['/metodologia', L('Metodologia', 'Methodology')]];
   const Page = PAGES[path] || Overview;
   const light = theme === 'light';
   return (

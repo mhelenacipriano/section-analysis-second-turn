@@ -5,7 +5,7 @@ import { DEFAULT_LIM, LIM_MAX, LIM_MIN } from '../stats.js';
 
 const PRESETS = [17 * 60 + 30, 18 * 60, 18 * 60 + 30, 18 * 60 + 50, 19 * 60];
 
-export function Filters({ data, f, setF, venc = false, limiar = true }) {
+export function Filters({ data, f, setF, venc = false, limiar = true, basico = false }) {
   const { L } = useLang();
   const [copied, setCopied] = useState(false);
   const muns = useMemo(() => (f.uf ? data.mun.filter((m) => m.uf === f.uf).sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR')) : []), [data, f.uf]);
@@ -21,6 +21,8 @@ export function Filters({ data, f, setF, venc = false, limiar = true }) {
           {data.ufs.map((u) => <option key={u} value={u}>{u}</option>)}
         </select>
       </label>
+      {!basico && (
+        <>
       <label>{L('Município', 'Municipality')}
         <select value={f.mun} disabled={!f.uf} onChange={(e) => setF({ mun: e.target.value })}>
           <option value="">{f.uf ? L('Todos', 'All') : L('Escolha um estado', 'Choose a state')}</option>
@@ -33,6 +35,8 @@ export function Filters({ data, f, setF, venc = false, limiar = true }) {
           <option value="1">{L('Só as 431 alteradas', 'Only the 431 changed')}</option>
         </select>
       </label>
+        </>
+      )}
       {venc && (
         <label>{L('Venceu no 1º turno', 'Won the 1st round')}
           <select value={f.venc} onChange={(e) => setF({ venc: e.target.value })}>

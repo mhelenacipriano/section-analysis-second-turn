@@ -251,3 +251,5 @@ a.btn { text-decoration: none; }
 .eb-top { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .95rem; } .eb-top b { font-variant-numeric: tabular-nums; }
 .eb-track { height: 26px; background: var(--soft); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-top: 4px; } .eb-track i { border-radius: 0; }
 tr[tabindex] { cursor: pointer; } tr.sel td { background: color-mix(in srgb, var(--fecha) 14%, transparent); }
+.pcard-v small { font-size: .5em; color: var(--muted); font-family: inherit; margin-left: 4px; }
+.atalhos { display: flex; flex-wrap: wrap; gap: 10px; }
