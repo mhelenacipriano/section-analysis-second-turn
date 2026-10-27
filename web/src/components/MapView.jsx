@@ -81,8 +81,8 @@ function Labels({ geo, tagOf, colorOf, colors, version }) {
       let size;
       try { size = map.getSize(); map.getCenter(); } catch { return; }
       const small = size.x < 560;
-      const fs = small ? 10 : 12;
-      const needW = small ? 30 : 38, needH = small ? 26 : 32;
+      const fs = small ? 8 : 10;
+      const needW = small ? 24 : 30, needH = small ? 20 : 25;
       const call = [];
       for (const it of items) {
         const sw = map.latLngToContainerPoint(it.bounds.getSouthWest()), ne = map.latLngToContainerPoint(it.bounds.getNorthEast());
@@ -97,15 +97,15 @@ function Labels({ geo, tagOf, colorOf, colors, version }) {
         if (p.x < 0 || p.y < 0 || p.x > size.x || p.y > size.y) continue;
         if (spot) {
           const ink = brightness(it.fill) > 0.62 ? '#161616' : '#fff';
-          text('uf-in', `<span style="color:${ink};font-size:${fs}px"><b>${it.tag.a}</b><br>${it.tag.b}</span>`, 48, 28, spot, [24, 14]);
+          text('uf-in', `<span style="color:${ink};font-size:${fs}px"><b>${it.tag.a}</b><br>${it.tag.b}</span>`, 40, 24, spot, [20, 12]);
         } else if (p.x < size.x * 0.58 && it.tag.a !== 'DF') {
           // inland or western and too small for its text: write it anyway, with a halo, rather than drag a long line across the country
-          text('uf-in halo', `<span style="font-size:${fs}px"><b>${it.tag.a}</b><br>${it.tag.b}</span>`, 48, 28, dot, [24, 14]);
+          text('uf-in halo', `<span style="font-size:${fs}px"><b>${it.tag.a}</b><br>${it.tag.b}</span>`, 40, 24, dot, [20, 12]);
         } else call.push({ it: { ...it, anchor: dot }, p });
       }
       // callouts: clusters of neighbours (by height) share a column to the right of the right-most dot
       const east = call.filter((c) => c.it.tag.a !== 'DF').sort((a, b) => a.p.y - b.p.y);
-      const lineH = small ? 13 : 15, tw = small ? 46 : 54;
+      const lineH = small ? 11 : 13, tw = small ? 40 : 46;
       const clusters = [];
       for (const c of east) {
         const last = clusters[clusters.length - 1];
@@ -116,7 +116,7 @@ function Labels({ geo, tagOf, colorOf, colors, version }) {
         const to = map.containerPointToLatLng([x, y]);
         L.polyline([c.it.anchor, to], { color: ink, weight: 0.8, opacity: 0.75, interactive: false }).addTo(group);
         L.circleMarker(c.it.anchor, { radius: 2, color: ink, fillColor: ink, fillOpacity: 1, weight: 1, interactive: false }).addTo(group);
-        const html = `<span style="font-size:${fs - 1}px"><b>${c.it.tag.a}</b> ${c.it.tag.b}</span>`;
+        const html = `<span style="font-size:${fs}px"><b>${c.it.tag.a}</b> ${c.it.tag.b}</span>`;
         text(`uf-out ${side}`, html, tw, lineH, map.containerPointToLatLng([x + (side === 'r' ? 3 : -3), y]), [side === 'r' ? 0 : tw, lineH / 2]);
       };
       for (const cl of clusters) {
