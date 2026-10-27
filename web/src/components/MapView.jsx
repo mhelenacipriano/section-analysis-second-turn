@@ -81,8 +81,8 @@ function Labels({ geo, tagOf, colorOf, colors, version }) {
       let size;
       try { size = map.getSize(); map.getCenter(); } catch { return; }
       const small = size.x < 560;
-      const fs = small ? 8 : 10;
-      const needW = small ? 24 : 30, needH = small ? 20 : 25;
+      const fs = small ? 7.5 : 9.5;
+      const needW = small ? 22 : 28, needH = small ? 18 : 23;
       const call = [];
       for (const it of items) {
         const sw = map.latLngToContainerPoint(it.bounds.getSouthWest()), ne = map.latLngToContainerPoint(it.bounds.getNorthEast());
@@ -140,7 +140,7 @@ function Labels({ geo, tagOf, colorOf, colors, version }) {
  * valueOf(feature) -> number | null ; color is a ramp from the panel colour to `hue`.
  * `version` must change whenever the values change (the layer is rebuilt when it does).
  */
-export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'accent', selected, focus, onPick, themeKey, version, colorOf, tagOf }) {
+export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'accent', selected, focus, onPick, themeKey, version, colorOf, tagOf, plain }) {
   const colors = useMemo(() => ({ lo: css('--panel2'), hi: css(`--${hue}`), none: css('--soft'), line: css('--line'), sel: css('--fg'), lula: css('--lula'), flavio: css('--flavio'), outros: css('--outros'), fg: css('--fg') }), [hue, themeKey]); // eslint-disable-line react-hooks/exhaustive-deps
   const style = (f) => {
     const v = valueOf(f);
@@ -155,9 +155,11 @@ export default function MapView({ geo, keyOf, labelOf, valueOf, max, hue = 'acce
     layer.on({ click: () => onPick?.(keyOf(f), f) });
   };
   return (
-    <MapContainer className="mapa" zoomSnap={0.25} attributionControl={false} scrollWheelZoom={false} minZoom={2} style={{ background: 'var(--soft)' }}>
+    <MapContainer className={`mapa ${plain ? 'plain' : ''}`} zoomSnap={0.25} attributionControl={false} scrollWheelZoom={false} minZoom={2}
+      zoomControl={!plain} dragging={!plain} touchZoom={!plain} doubleClickZoom={!plain} boxZoom={!plain} keyboard={!plain}
+      style={plain ? undefined : { background: 'var(--soft)' }}>
       <GeoJSON key={`${geoId(geo)}|${version}|${selected}|${themeKey}`} data={geo} style={style} onEachFeature={each} />
-      <Fit geo={geo} focus={focus} keyOf={keyOf} room={tagOf ? 64 : 8} />
+      <Fit geo={geo} focus={focus} keyOf={keyOf} room={tagOf ? 60 : 8} />
       {tagOf && <Labels geo={geo} tagOf={tagOf} colorOf={colorOf} colors={colors} version={`${version}|${themeKey}`} />}
     </MapContainer>
   );

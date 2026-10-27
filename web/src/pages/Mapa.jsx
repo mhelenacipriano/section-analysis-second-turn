@@ -151,14 +151,15 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
           {err && <p className="empty">{L('Não foi possível carregar o mapa', 'Could not load the map')} ({String(err.message || err)}).</p>}
           {!geo && !err && <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
           {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} colorOf={colorOf} tagOf={tagOf} max={1} selected={selected} focus={f.mun ? selected : null}
-            onPick={onPick} themeKey={themeKey} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
+            onPick={onPick} themeKey={themeKey} plain={level === 'uf'} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
+          {level === 'uf' && <p className="hint">{L(`O número em cada estado é a porcentagem das suas seções encerradas às ${T} ou depois. Passe o mouse num estado para ver o total; clique ou toque para ver os municípios.`, `The number on each state is the share of its sections closed at ${T} or later. Hover a state to see the total; click or tap to see its municipalities.`)}</p>}
           {vista === 'pct' && (
-            <div className="classes" aria-label={L('Legenda das cores', 'Colour legend')}>
-              {scale.hasZero && <span><i style={{ background: 'var(--panel2)' }} />0</span>}
-              {classLabels.map((c, i) => <span key={i}><i style={{ background: `color-mix(in srgb, var(--fecha) ${Math.round(c.t * 100)}%, var(--panel2))` }} />{c.text}</span>)}
+            <div className="escala" role="img" aria-label={L('Legenda das cores, de menos a mais seções', 'Colour legend, from fewer to more sections')}>
+              <span>{L('menos', 'less')}</span>
+              {classLabels.map((c, i) => <i key={i} title={c.text} style={{ background: `color-mix(in srgb, var(--fecha) ${Math.round(c.t * 100)}%, var(--panel2))` }} />)}
+              <span>{L('mais seções', 'more sections')}</span>
             </div>
           )}
-          {level === 'uf' && <Note>{L('O número em cada estado é a porcentagem das suas seções que fecharam às ' + T + ' ou depois.', `The number on each state is the share of its sections that closed at ${T} or later.`)}</Note>}
           {f.uf && <button type="button" className="btn" onClick={() => setF({ uf: '', mun: '' })}>← {L('Brasil', 'Brazil')}</button>}
           {noPolygon > 0 && <Note>{L(`${noPolygon} município(s) de ${f.uf} criado(s) recentemente não têm contorno no mapa; aparecem nas tabelas.`, `${noPolygon} recently created municipality(ies) of ${f.uf} have no outline on the map; they appear in the tables.`)}</Note>}
         </div>

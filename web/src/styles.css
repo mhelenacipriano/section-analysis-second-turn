@@ -175,7 +175,8 @@ td.empty { text-align: center; white-space: normal; }
 /* state labels (see Labels in MapView.jsx): inside a state, or a callout beside the map */
 .uf-in, .uf-out { pointer-events: none; font-family: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .uf-in { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
-.uf-in b { font-weight: 800; letter-spacing: .02em; }
+.uf-in b { font-weight: 800; letter-spacing: .04em; }
+.uf-in { font-weight: 600; }
 .uf-in.halo { color: var(--fg); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg); }
 .uf-out { display: flex; align-items: center; color: var(--fg); line-height: 1; text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg); }
 .uf-out.l { justify-content: flex-end; }
@@ -215,3 +216,10 @@ a.btn { text-decoration: none; }
 .rank li > span small.quem { font-weight: 600; }
 .rank li > span small.quem.lula { color: var(--lula); }
 .rank li > span small.quem.flavio { color: var(--flavio); }
+
+/* state map drawn like a printed figure: no frame, no controls, tight to the country */
+.mapa.plain { height: auto; min-height: 0; aspect-ratio: 1 / .88; max-height: 640px; border: 0; border-radius: 0; background: transparent; cursor: default; }
+.mapa.plain path.leaflet-interactive { cursor: pointer; }
+.hint { text-align: center; color: var(--fg2); font-size: .92rem; margin: 4px 0 0; }
+.escala { display: flex; align-items: center; justify-content: center; gap: 8px; color: var(--muted); font-size: .92rem; margin-top: 4px; }
+.escala i { display: inline-block; width: 2.2rem; height: 1.1rem; border-radius: 5px; border: 1px solid var(--line); }

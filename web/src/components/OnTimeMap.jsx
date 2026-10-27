@@ -26,7 +26,7 @@ export default function OnTimeMap({ data, go, themeKey }) {
       <div className="mapa-caixa">
         {geo ? (
           <MapView
-            geo={geo} themeKey={themeKey} version={`pontual|${rows.length}|${L('pt', 'en')}`}
+            geo={geo} plain themeKey={themeKey} version={`pontual|${rows.length}|${L('pt', 'en')}`}
             keyOf={(f) => f.properties.uf}
             valueOf={(f) => byUf.get(f.properties.uf)?.pct ?? null} max={1}
             colorOf={(f, c) => { const r = byUf.get(f.properties.uf); return r ? c[r.winner] : c.none; }}
