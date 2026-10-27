@@ -29,12 +29,15 @@ function Fit({ geo, focus, keyOf }) {
 // (the Northeast) would overlap, so a label that does not fit is moved to the nearest free spot
 // and joined to its state by a thin line; the layout is redone on every zoom/pan, so zooming in
 // puts each label back on its state.
-const LW = 50, LH = 30;
-const OFFSETS = (() => {
+// full size (two lines) on a wide map; compact one-line pills on a small one (phones), where 27 big
+// labels would cover the whole country
+const SIZES = { full: { w: 50, h: 30, rings: [36, 66, 96, 126] }, compact: { w: 54, h: 16, rings: [22, 40, 58, 76, 94] } };
+const offsets = (rings) => {
   const o = [[0, 0]];
-  for (const r of [36, 66, 96, 126]) for (const a of [0, 40, -40, 80, -80, 120, -120, 160, -160, 180]) o.push([Math.round(r * Math.cos((a * Math.PI) / 180)), Math.round(r * Math.sin((a * Math.PI) / 180))]);
+  for (const r of rings) for (const a of [0, 40, -40, 80, -80, 120, -120, 160, -160, 180]) o.push([Math.round(r * Math.cos((a * Math.PI) / 180)), Math.round(r * Math.sin((a * Math.PI) / 180))]);
   return o;
-})();
+};
+const OFFSETS = { full: offsets(SIZES.full.rings), compact: offsets(SIZES.compact.rings) };
 
 function Labels({ geo, tagOf, version }) {
   const map = useMap();
@@ -51,12 +54,14 @@ function Labels({ geo, tagOf, version }) {
       group.clearLayers();
       let size;
       try { size = map.getSize(); map.getCenter(); } catch { return; }
+      const mode = size.x < 560 ? 'compact' : 'full';
+      const { w: LW, h: LH } = SIZES[mode];
       const placed = [];
       const clash = (r) => placed.some((q) => r.x < q.x + LW && r.x + LW > q.x && r.y < q.y + LH && r.y + LH > q.y);
       for (const it of items) {
         const p = map.latLngToContainerPoint(it.center);
         let pick = null;
-        for (const [dx, dy] of OFFSETS) {
+        for (const [dx, dy] of OFFSETS[mode]) {
           const r = { x: p.x + dx - LW / 2, y: p.y + dy - LH / 2 };
           if (r.x < 0 || r.y < 0 || r.x + LW > size.x || r.y + LH > size.y) continue;
           if (!clash(r)) { pick = { r, dx, dy }; break; }
@@ -66,7 +71,7 @@ function Labels({ geo, tagOf, version }) {
         const pos = map.containerPointToLatLng([p.x + pick.dx, p.y + pick.dy]);
         if (pick.dx || pick.dy) L.polyline([it.center, pos], { color: '#fff', weight: 1.2, opacity: 0.9, interactive: false }).addTo(group);
         L.marker(pos, { interactive: false, keyboard: false,
-          icon: L.divIcon({ className: 'uf-tag', html: it.html, iconSize: [LW, LH], iconAnchor: [LW / 2, LH / 2] }) }).addTo(group);
+          icon: L.divIcon({ className: `uf-tag ${mode}`, html: it.html, iconSize: [LW, LH], iconAnchor: [LW / 2, LH / 2] }) }).addTo(group);
       }
     };
     map.whenReady(draw);
