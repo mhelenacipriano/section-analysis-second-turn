@@ -68,6 +68,8 @@ def main():
 
     scan, no_sim, scanned = [], 0, 0
     for p in sorted(glob.glob(os.path.join(root, "results_sim", "todos_votaram_[A-Z][A-Z].csv"))):
+        if p.endswith("_BR.csv"):          # the merged national file: do not count the sections twice
+            continue
         with open(p, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
                 scanned += 1

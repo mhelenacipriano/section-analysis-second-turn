@@ -168,3 +168,14 @@ Brasília time**, the last vote, votes after 17h, and the first-turn result (Lul
 The raw `results_enc/encerramentos_<UF>.csv` files are in the urna's local time (16:30 on an MT/MS/AM/RO/RR
 urna is 17:30 Brasília) and keep every section that closed from 17:30 Brasília on, so the site's slider can
 move; only the sections in the window above are "closed around 19h". Clock rules live in `scripts/clocks.py`.
+
+## Sections by the "Todas as pessoas presentes já votaram? SIM" line
+
+`python baixar_logs_resultados.py --uf RJ --pleito 3221 --no-keep-logs --evento sim --so-secoes results_enc/encerramentos_BR.csv`
+reads only the logs of the sections that closed late and keeps the time of the last
+"Todas as pessoas presentes já votaram? SIM" of 25/10 (`state_sim/`, `results_sim/todos_votaram_<UF>.csv`).
+`python scripts/secoes_todos_votaram_19h.py` lists the ones at or after 18:50 Brasília with their first-turn result
+(`results_sim/secoes_todos_votaram_19h.csv`: 6,732 sections). The line comes 2-6 s after "Encerrar votação" and about
+25 s (median) before the confirmed closing; 8 of the 6,740 sections confirmed at 18:50 or later have a last "SIM" before
+18:50 or none. `scripts/extrair_urnas_tardias.py` does the same from the public apolinario/urnas-tardias data
+(closing confirmed, `results_tardias/`).
