@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import MapView from '../components/MapView.jsx';
+import MapView, { ramp } from '../components/MapView.jsx';
 import { winnerName } from '../components/OnTimeMap.jsx';
 import { Filters } from '../components/Filters.jsx';
 import { Note, StackBar, Stat } from '../components/ui.jsx';
@@ -8,15 +8,34 @@ import { useLang } from '../i18n.jsx';
 import { fmtHM, fmtN, fmtPct } from '../format.js';
 import { byUnit, groups, leader } from '../stats.js';
 
+// View 1 colours by the share of each place's sections that closed at/after the chosen time, whoever won.
+// Six quantile classes (about the same number of places in each) so RJ/SP do not wash out everyone else;
+// zero stays neutral and even the lightest class is clearly tinted.
+const CLASSES = 6;
+const T_MIN = 0.28;
+function classify(values) {
+  const v = values.filter((x) => x > 0).sort((a, b) => a - b);
+  if (!v.length) return { breaks: [], n: 0, max: 0 };
+  const raw = [];
+  for (let j = 1; j < CLASSES; j++) raw.push(v[Math.min(v.length - 1, Math.floor((j * v.length) / CLASSES))]);
+  const breaks = [...new Set(raw)].filter((b) => b < v[v.length - 1]);
+  return { breaks, n: breaks.length + 1, max: v[v.length - 1] };
+}
+const classOf = (sc, x) => sc.breaks.filter((b) => x > b).length;
+const tOf = (sc, i) => (sc.n <= 1 ? 1 : T_MIN + (1 - T_MIN) * (i / (sc.n - 1)));
+const pctText = (x) => fmtPct(x, x < 0.001 ? 3 : 2);   // tiny shares need a third decimal to tell the classes apart
+
 const MIN_SECTIONS = 30;   // municipality ranking: ignore places too small for a percentage to mean anything
 
 /**
- * Map of the places that have sections closed at/after the chosen time, coloured by who won in the
- * 1st round: red = Lula, blue = Flávio. "Who won" is either the sections of that time put together
- * (their votes added up) or the whole state / municipality.
+ * Two views of the places that have sections closed at/after the chosen time:
+ *   1 (default)  shades = share of the place's sections that closed then, whoever won
+ *   2            red = Lula, blue = Flávio, by 1st-round votes: the sections of that time put together
+ *                (their votes added up) or the whole state / municipality
  */
 export default function Mapa({ data, f, setF, query, go, themeKey }) {
   const { L, lang } = useLang();
+  const vista = query.vista === 'vencedor' ? 'vencedor' : 'pct';
   const quem = query.quem === 'estado' ? 'estado' : 'secoes';
   const file = f.uf ? `mun_${f.uf}.json` : 'uf.json';
   const [loaded, setLoaded] = useState(null);          // { file, data }
@@ -45,21 +64,37 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
     const valid = vl + vf + vo;
     return { winner: leader(vl, vf), vl, vf, l: valid ? vl / valid : 0, fl: valid ? vf / valid : 0 };
   };
+  const valueOf = (feat) => { const u = unitOf(feat); return u && u.n ? u.atT / u.n : null; };
+  const scale = useMemo(() => {
+    const vals = [];
+    for (const u of units.values()) if (u.n && (level === 'uf' || u.uf === f.uf)) vals.push(u.atT / u.n);
+    return { ...classify(vals), hasZero: vals.some((x) => x <= 0) };
+  }, [units, level, f.uf]);
   const colorOf = (feat, c) => {
+    if (vista === 'pct') {
+      const v = valueOf(feat);
+      if (v == null) return c.none;
+      if (v <= 0 || !scale.n) return c.lo;
+      return ramp(tOf(scale, classOf(scale, v)), c.lo, c.hi);
+    }
     const s = stat(unitOf(feat));
     return s ? c[s.winner] : c.none;
   };
-  const valueOf = (feat) => { const u = unitOf(feat); return u && u.atT ? u.atT / u.n : null; };
+  const classLabels = scale.n ? Array.from({ length: scale.n }, (_, i) => {
+    const lo = i === 0 ? null : scale.breaks[i - 1], hi = i === scale.n - 1 ? null : scale.breaks[i];
+    return { t: tOf(scale, i), text: lo == null ? `≤ ${pctText(hi ?? scale.max)}` : hi == null ? `> ${pctText(lo)}` : `${pctText(lo)} – ${pctText(hi)}` };
+  }) : [];
   const labelOf = (feat) => {
     const u = unitOf(feat);
     const name = level === 'uf' ? feat.properties.uf : feat.properties.name;
     const s = stat(u);
     if (!u || !u.n) return `${name}: ${L('sem dados', 'no data')}`;
+    if (vista === 'pct') return `${name}: ${fmtPct(u.atT / u.n, 2)} · ${fmtN(u.atT)} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções encerradas às', 'sections closed at')} ${T}${L(' ou depois', ' or later')}`;
     if (!s) return `${name}: ${L(`nenhuma seção encerrada às ${T} ou depois`, `no section closed at ${T} or later`)}`;
     return `${name}: ${fmtN(u.atT)} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções', 'sections')} (${fmtPct(u.atT / u.n, 2)}) · ${L('votos no 1º turno', '1st-round votes')}: Lula ${fmtN(s.vl)} (${fmtPct(s.l)}) × Flávio ${fmtN(s.vf)} (${fmtPct(s.fl)}) → ${W(s.winner)}`;
   };
   const tagOf = level === 'uf'
-    ? (feat) => { const u = unitOf(feat); return u && u.atT ? `<span><b>${feat.properties.uf}</b><br>${fmtPct(u.atT / u.n, 1)}</span>` : ''; }
+    ? (feat) => { const u = unitOf(feat); return u && u.n && (u.atT || vista === 'pct') ? `<span><b>${feat.properties.uf}</b><br>${fmtPct(u.atT / u.n, 1)}</span>` : ''; }
     : undefined;
   const keyOf = (feat) => (level === 'uf' ? feat.properties.uf : feat.properties.id);
   const onPick = (key) => {
@@ -81,32 +116,48 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
     <div className="stack">
       <h1 className="page-title">{L('Mapa', 'Map')}</h1>
       <p className="sub">
-        {L(
-          `Todos os ${unitWord} com seções encerradas às ${T} ou depois, coloridos pela comparação dos votos de Lula e Flávio Bolsonaro no 1º turno: vermelho = Lula teve mais votos, azul = Flávio teve mais votos.`,
-          `All ${unitWord} with sections closed at ${T} or later, coloured by comparing Lula’s and Flávio Bolsonaro’s 1st-round votes: red = Lula had more votes, blue = Flávio had more votes.`,
-        )}
+        {vista === 'pct'
+          ? L(`Os ${unitWord} onde mais seções fecharam às ${T} ou depois: quanto mais escuro, maior a porcentagem das seções do lugar. Não depende de quem venceu.`,
+            `The ${unitWord} where the most sections closed at ${T} or later: the darker, the larger the share of that place’s sections. It does not depend on who won.`)
+          : L(`Todos os ${unitWord} com seções encerradas às ${T} ou depois, coloridos pela comparação dos votos de Lula e Flávio Bolsonaro no 1º turno: vermelho = Lula teve mais votos, azul = Flávio teve mais votos.`,
+            `All ${unitWord} with sections closed at ${T} or later, coloured by comparing Lula’s and Flávio Bolsonaro’s 1st-round votes: red = Lula had more votes, blue = Flávio had more votes.`)}
         {' '}{f.uf ? L('Clique num município para filtrar.', 'Click a municipality to filter.') : L('Clique num estado para ver os municípios.', 'Click a state to see its municipalities.')}
       </p>
       <Filters data={data} f={f} setF={setF} />
 
-      <div className="subnav" role="group" aria-label={L('Quem venceu', 'Who won')}>
-        {[['secoes', L(`Quem venceu nas seções encerradas às ${T}+ (somadas)`, `Who won the sections closed at ${T}+ (added together)`)], ['estado', f.uf ? L('Quem venceu no município inteiro', 'Who won the whole municipality') : L('Quem venceu no estado inteiro', 'Who won the whole state')]].map(([k, label]) => (
-          <button key={k} type="button" aria-current={quem === k ? 'page' : undefined} onClick={() => go(undefined, { ...query, quem: k })}>{label}</button>
+      <div className="subnav" role="group" aria-label={L('Vista do mapa', 'Map view')}>
+        {[['pct', L(`1. Onde mais seções fecharam às ${T}+ (%)`, `1. Where the most sections closed at ${T}+ (%)`)], ['vencedor', L('2. Quem venceu no 1º turno (vermelho/azul)', '2. Who won the 1st round (red/blue)')]].map(([k, label]) => (
+          <button key={k} type="button" aria-current={vista === k ? 'page' : undefined} onClick={() => go(undefined, { ...query, vista: k === 'pct' ? '' : k })}>{label}</button>
         ))}
       </div>
 
-      <div className="legend" aria-label={L('Legenda do mapa', 'Map legend')}>
-        <span><i className="sw lula" />{L('Lula teve mais votos no 1º turno', 'Lula had more 1st-round votes')}</span>
-        <span><i className="sw flavio" />{L('Flávio teve mais votos no 1º turno', 'Flávio had more 1st-round votes')}</span>
-        <span><i className="sw neu" />{L(`nenhuma seção encerrada às ${T}+`, `no section closed at ${T}+`)}</span>
-      </div>
+      {vista === 'vencedor' && (
+        <>
+          <div className="subnav" role="group" aria-label={L('Quem venceu', 'Who won')}>
+            {[['secoes', L(`Quem venceu nas seções encerradas às ${T}+ (somadas)`, `Who won the sections closed at ${T}+ (added together)`)], ['estado', f.uf ? L('Quem venceu no município inteiro', 'Who won the whole municipality') : L('Quem venceu no estado inteiro', 'Who won the whole state')]].map(([k, label]) => (
+              <button key={k} type="button" aria-current={quem === k ? 'page' : undefined} onClick={() => go(undefined, { ...query, quem: k })}>{label}</button>
+            ))}
+          </div>
+          <div className="legend" aria-label={L('Legenda do mapa', 'Map legend')}>
+            <span><i className="sw lula" />{L('Lula teve mais votos no 1º turno', 'Lula had more 1st-round votes')}</span>
+            <span><i className="sw flavio" />{L('Flávio teve mais votos no 1º turno', 'Flávio had more 1st-round votes')}</span>
+            <span><i className="sw neu" />{L(`nenhuma seção encerrada às ${T}+`, `no section closed at ${T}+`)}</span>
+          </div>
+        </>
+      )}
 
       <div className="mapa-grid">
         <div className="mapa-caixa">
           {err && <p className="empty">{L('Não foi possível carregar o mapa', 'Could not load the map')} ({String(err.message || err)}).</p>}
           {!geo && !err && <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}
           {geo && <MapView geo={geo} keyOf={keyOf} labelOf={labelOf} valueOf={valueOf} colorOf={colorOf} tagOf={tagOf} max={1} selected={selected} focus={f.mun ? selected : null}
-            onPick={onPick} themeKey={themeKey} version={`${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
+            onPick={onPick} themeKey={themeKey} hue="fecha" version={`${vista}|${level}|${f.uf}|${quem}|${f.lim}|${f.alt}|${lang}`} />}
+          {vista === 'pct' && (
+            <div className="classes" aria-label={L('Legenda das cores', 'Colour legend')}>
+              {scale.hasZero && <span><i style={{ background: 'var(--panel2)' }} />0</span>}
+              {classLabels.map((c, i) => <span key={i}><i style={{ background: `color-mix(in srgb, var(--fecha) ${Math.round(c.t * 100)}%, var(--panel2))` }} />{c.text}</span>)}
+            </div>
+          )}
           {level === 'uf' && <Note>{L('O número em cada estado é a porcentagem das suas seções que fecharam às ' + T + ' ou depois.', `The number on each state is the share of its sections that closed at ${T} or later.`)}</Note>}
           {f.uf && <button type="button" className="btn" onClick={() => setF({ uf: '', mun: '' })}>← {L('Brasil', 'Brazil')}</button>}
           {noPolygon > 0 && <Note>{L(`${noPolygon} município(s) de ${f.uf} criado(s) recentemente não têm contorno no mapa; aparecem nas tabelas.`, `${noPolygon} recently created municipality(ies) of ${f.uf} have no outline on the map; they appear in the tables.`)}</Note>}
@@ -114,17 +165,21 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
         <aside className="mapa-lado">
           <h2>{f.mun ? data.mun.find((m) => m.uf === f.uf && m.cod === f.mun)?.nome : f.uf || L('Brasil', 'Brazil')}</h2>
           <Stat k={L(`Encerradas às ${T} ou depois`, `Closed at ${T} or later`)} v={fmtN(g.atT.n)} sub={L(`de ${fmtN(g.total.n)} seções`, `of ${fmtN(g.total.n)} sections`)} />
-          <Stat k={L(`${unitWord[0].toUpperCase()}${unitWord.slice(1)} com seções às ${T}+`, `${unitWord[0].toUpperCase()}${unitWord.slice(1)} with sections at ${T}+`)} v={`${fmtN(withSections.length)}`} sub={L(`vermelho (Lula): ${fmtN(redN)} · azul (Flávio): ${fmtN(blueN)}`, `red (Lula): ${fmtN(redN)} · blue (Flávio): ${fmtN(blueN)}`)} />
-          <p className="note">{L(`Votos no 1º turno nas seções encerradas às ${T}+:`, `1st-round votes in the sections closed at ${T}+:`)}</p>
-          <StackBar l={g.atT.vl} f={g.atT.vf} o={g.atT.vo} compact votes />
-          <p className="note">{L('Votos no 1º turno em todas as outras seções:', '1st-round votes in all the other sections:')}</p>
-          <StackBar l={g.rest.vl} f={g.rest.vf} o={g.rest.vo} compact votes />
+          {vista === 'vencedor' && (
+            <>
+              <Stat k={L(`${unitWord[0].toUpperCase()}${unitWord.slice(1)} com seções às ${T}+`, `${unitWord[0].toUpperCase()}${unitWord.slice(1)} with sections at ${T}+`)} v={`${fmtN(withSections.length)}`} sub={L(`vermelho (Lula): ${fmtN(redN)} · azul (Flávio): ${fmtN(blueN)}`, `red (Lula): ${fmtN(redN)} · blue (Flávio): ${fmtN(blueN)}`)} />
+              <p className="note">{L(`Votos no 1º turno nas seções encerradas às ${T}+:`, `1st-round votes in the sections closed at ${T}+:`)}</p>
+              <StackBar l={g.atT.vl} f={g.atT.vf} o={g.atT.vo} compact votes />
+              <p className="note">{L('Votos no 1º turno em todas as outras seções:', '1st-round votes in all the other sections:')}</p>
+              <StackBar l={g.rest.vl} f={g.rest.vf} o={g.rest.vo} compact votes />
+            </>
+          )}
           <h3>{L(`Maior % de seções encerradas às ${T}+`, `Highest % of sections closed at ${T}+`)}</h3>
           <ol className="rank">
             {ranking.map(({ u, p, s }) => (
               <li key={u.key}>
                 <button type="button" className="linklike" onClick={() => (level === 'uf' ? setF({ uf: u.uf, mun: '' }) : setF({ mun: u.mun.cod }))}>{level === 'uf' ? u.uf : u.mun.nome}</button>
-                <span>{fmtPct(p, 2)}<small>{fmtN(u.atT)} {L('de', 'of')} {fmtN(u.n)} {L('seções', 'sections')}</small><small className={`quem ${s.winner}`}>{W(s.winner)}</small></span>
+                <span>{fmtPct(p, 2)}<small>{fmtN(u.atT)} {L('de', 'of')} {fmtN(u.n)} {L('seções', 'sections')}</small>{vista === 'vencedor' && <small className={`quem ${s.winner}`}>{W(s.winner)}</small>}</span>
               </li>
             ))}
           </ol>
