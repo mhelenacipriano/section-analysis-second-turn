@@ -122,26 +122,29 @@ export const leader = (vl, vf) => (vl > vf ? 'lula' : vf > vl ? 'flavio' : 'outr
  * Returns { scope, states, all, early }: the selected group for the scope, for every state, and the two
  * groups that add up to every urna of the scope.
  */
+// minutes since midnight -> column of the detail rows holding the votes at/after that time
+const VB_KEY = { 1050: 'va', 1065: 'vb1745', 1080: 'vb1800', 1110: 'vb1830', 1130: 'vb1850', 1140: 'vb1900' };
 export function pesoTardio(data, lim, scope = '', cedo = false) {
   const T = lim * 60;
+  const vb = VB_KEY[lim] || 'va';           // column with the votes at/after `lim` (presets only; 17:30 otherwise)
   const by = new Map();
-  const blank = (uf) => ({ uf, sections: 0, va0: 0, nDet: 0, vaDet: 0, vdDet: 0, n: 0, va: 0, vdSel: 0 });
+  const blank = (uf) => ({ uf, sections: 0, va0: 0, nDet: 0, vaDet: 0, vdDet: 0, n: 0, va: 0, vdSel: 0, vbSel: 0 });
   const get = (uf) => by.get(uf) || by.set(uf, blank(uf)).get(uf);
   for (const m of data.mun) { const u = get(m.uf); u.sections += m.n; u.va0 += m.va0 || 0; }
   for (const d of data.det) {
     const u = get(d.mun.uf);
     u.nDet++; u.vaDet += d.va; u.vdDet += d.vd;
-    if (d.enc != null && d.enc >= T) { u.n++; u.va += d.va; u.vdSel += d.vd; }
+    if (d.enc != null && d.enc >= T) { u.n++; u.va += d.va; u.vdSel += d.vd; u.vbSel += d[vb] || 0; }
   }
   const pick = (u) => (cedo ? { ...u, n: u.sections - u.nDet, va: u.va0, early: true } : u);
   const make = (acc, t2) => {
     const margin = t2.lula - t2.flavio;
     // votes cast in the urnas of the group: the late urnas' own log counts, or everything else for the early group
     const inGroup = acc.early ? t2.comparecimento - acc.vdDet : acc.vdSel;
-    return { ...acc, votes: t2.comparecimento, inGroup, pctInGroup: inGroup / t2.comparecimento, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
+    return { ...acc, votes: t2.comparecimento, inGroup, pctInGroup: inGroup / t2.comparecimento, until: acc.vdSel - acc.vbSel, margin, winner: margin >= 0 ? 'lula' : 'flavio', gap: Math.abs(margin),
       pctSections: acc.sections ? acc.n / acc.sections : 0, pctVotes: acc.va / t2.comparecimento, pctGap: acc.va / Math.abs(margin) };
   };
-  const sum = (list) => list.reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, va0: a.va0 + u.va0, nDet: a.nDet + u.nDet, vaDet: a.vaDet + u.vaDet, vdDet: a.vdDet + u.vdDet, n: a.n + u.n, va: a.va + u.va, vdSel: a.vdSel + u.vdSel }), blank(''));
+  const sum = (list) => list.reduce((a, u) => ({ uf: '', sections: a.sections + u.sections, va0: a.va0 + u.va0, nDet: a.nDet + u.nDet, vaDet: a.vaDet + u.vaDet, vdDet: a.vdDet + u.vdDet, n: a.n + u.n, va: a.va + u.va, vdSel: a.vdSel + u.vdSel, vbSel: a.vbSel + u.vbSel }), blank(''));
   const of = (u) => u || blank(scope);
   const base = scope ? of(by.get(scope)) : sum([...by.values()]);
   const t2 = data.t2[scope || 'BR'];

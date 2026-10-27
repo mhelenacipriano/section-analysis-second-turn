@@ -191,3 +191,11 @@ vote). `scripts/votos_apos_1730.py` reads, in memory, the logs of every section 
 municipalities whose urna clock is not their state's default and the sections the first scan could not read) and writes
 `data/votos_apos_1730.csv`; `build_site_data.py` reads it. Result: 3,219 votes at/after 17:30, all of them in urnas that
 closed at/after 17:30 (a vote cannot come after the confirmed closing), 3,073 of them in the 6,740 urnas closed at 18:50 or later.
+
+## Which urnas closed first
+
+`python scripts/primeiras_urnas.py` reads the logs (in memory) of the 150 earliest-closing sections of each state and the 400
+earliest of the country and orders them by `Gerando arquivo de resultado [imgze.dat] + [Término]`
+(`results_imgze/primeiras_urnas.csv`). `scripts/estados_imgze.py` does the same for the late-closing sections
+(`results_imgze/estados_imgze.csv`). The first urna of the country to finish imgze.dat was Curitiba (PR), zona 174,
+seção 256, at 17:00:39 Brasília time.

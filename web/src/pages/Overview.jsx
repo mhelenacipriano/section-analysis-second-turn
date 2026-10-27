@@ -43,8 +43,11 @@ function ResumoInner({ data, f, setF, go }) {
 
   // every row is a share of the same totals: early + 17:30-or-later = all urnas; the cut-offs below are parts of "17:30 or later"
   const cuts = useMemo(() => CUTS.map((c) => ({ c, ...pesoTardio(data, c, f.uf).scope })), [data, f.uf]);
-  const rest = useMemo(() => ({ ...all, n: all.n - early.n, va: all.va - early.va, pctSections: (all.n - early.n) / (all.sections || 1),
-    pctVotes: (all.va - early.va) / all.votes, pctGap: (all.va - early.va) / all.gap }), [all, early]);
+  const rest = useMemo(() => ({ ...all, n: all.n - early.n, va: all.va - early.va, pctSections: (all.n - early.n) / (all.sections || 1) }), [all, early]);
+  // total votes counted UNTIL the row's time: the groups at 17:30, the "a partir das" rows at their own time
+  const untilAll = all.votes - all.vaDet;                 // every urna, votes cast until 17:30
+  const untilEarly = early.inGroup;                       // closed before 17:30: all their votes were cast until 17:30
+  const untilRest = all.vdDet - all.vaDet;                // closed at/after 17:30: votes cast until 17:30
   const noRec = rest.n - cuts[0].n;
   const rows = useMemo(() => states.filter((r) => r.n > 0), [states]);
 
@@ -59,10 +62,10 @@ function ResumoInner({ data, f, setF, go }) {
   ];
 
   // the table of closing times: every row against the same totals
-  const line = (key, label, r, { sub = false, sel = false, onClick, strong = false } = {}) => (
+  const line = (key, label, r, until, { sub = false, sel = false, onClick, strong = false } = {}) => (
     <tr key={key} className={`${sub ? 'sub' : ''} ${sel ? 'sel' : ''} ${strong ? 'total' : ''}`} onClick={onClick} tabIndex={onClick ? 0 : undefined} onKeyDown={(e) => onClick && e.key === 'Enter' && onClick()}>
-      <td>{strong ? <strong>{label}</strong> : label}</td><td className="num">{fmtN(r.n)} <small>({fmtPct(r.pctSections, 2)})</small></td><td className="num">{fmtN(r.va)}</td>
-      <td className="num">{pct(r.pctVotes)}</td><td className="num">{pct(r.pctGap)}</td>
+      <td>{strong ? <strong>{label}</strong> : label}</td><td className="num">{fmtN(r.n)} <small>({fmtPct(r.pctSections, 2)})</small></td><td className="num">{fmtN(until)}</td>
+      <td className="num">{fmtPct(until / all.votes, 2)}</td>
     </tr>
   );
 
@@ -151,18 +154,19 @@ function ResumoInner({ data, f, setF, go }) {
         <div className="tabela-scroll">
           <table>
             <thead><tr>
-              <th>{L('Horário de encerramento', 'Closing time')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Votos depois das 17:30', 'Votes after 5:30 pm')}</th>
-              <th className="num">{L('% dos votos', '% of votes')}</th><th className="num">{L('% da vantagem', '% of the margin')}</th></tr></thead>
+              <th>{L('Horário de encerramento', 'Closing time')}</th><th className="num">{L('Urnas', 'Urnas')}</th><th className="num">{L('Total de votos até o horário', 'Total votes until the time')}</th>
+              <th className="num">{L('% de todos os votos', '% of all votes')}</th></tr></thead>
             <tbody>
-              {line('all', L('Todas as urnas (total)', 'All urnas (total)'), all, { strong: true })}
-              {line('early', L('Antes das 17:30', 'Before 17:30'), early, { sel: cedo, onClick: () => setF({ cedo: '1' }) })}
-              {line('rest', L('17:30 ou depois', '17:30 or later'), rest, { sel: false, onClick: () => setF({ lim: EARLY }) })}
-              {cuts.map((r) => line(`c${r.c}`, <>{L('a partir das', 'from')} {fmtHM(r.c)}</>, r, { sub: true, sel: !cedo && r.c === f.lim, onClick: () => setF({ lim: r.c }) }))}
+              {line('all', L('Todas as urnas (total)', 'All urnas (total)'), all, untilAll, { strong: true })}
+              {line('early', L('Antes das 17:30', 'Before 17:30'), early, untilEarly, { sel: cedo, onClick: () => setF({ cedo: '1' }) })}
+              {line('rest', L('17:30 ou depois', '17:30 or later'), rest, untilRest, { sel: false, onClick: () => setF({ lim: EARLY }) })}
+              {cuts.map((r) => line(`c${r.c}`, <>{L('a partir das', 'from')} {fmtHM(r.c)}</>, r, r.until, { sub: true, sel: !cedo && r.c === f.lim, onClick: () => setF({ lim: r.c }) }))}
             </tbody>
           </table>
         </div>
-        {noRec > 0 && <p className="note">{L(`“17:30 ou depois” inclui ${fmtN(noRec)} urnas sem registro de encerramento no log; as linhas “a partir das” não as contam.`,
-          `“17:30 or later” includes ${fmtN(noRec)} urnas with no closing record in the log; the “from” rows do not count them.`)}</p>}
+        <p className="note">{L('Votos contados até as 17:30 nas urnas de cada grupo; nas linhas “a partir das”, até o horário da linha, nas urnas que fecharam a partir dele.',
+          'Votes counted until 17:30 in the urnas of each group; in the “from” rows, until the time of the row, in the urnas that closed from it.')}
+          {noRec > 0 && ` ${L(`“17:30 ou depois” inclui ${fmtN(noRec)} urnas sem registro de encerramento no log; as linhas “a partir das” não as contam.`, `“17:30 or later” includes ${fmtN(noRec)} urnas with no closing record in the log; the “from” rows do not count them.`)}`}</p>
       </section>
 
       <section className="story" aria-labelledby="ufs">

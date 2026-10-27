@@ -100,12 +100,16 @@ def main():
 
     # votes at/after 17:30 BRASÍLIA (the site's "late vote" cut-off): scripts/votos_apos_1730.py reads the logs of
     # every section whose last vote is at/after 17:30; any other section has none
-    va30 = {}
+    VCUTS = ["1745", "1800", "1830", "1850", "1900"]     # votes at/after each of these Brasília times (17:30 is "va")
+    va30, vcut = {}, {c: {} for c in VCUTS}
     p30 = os.path.join(root, "data", "votos_apos_1730.csv")
     if os.path.exists(p30):
         with open(p30, newline="", encoding="utf-8") as f:
             for r in csv.DictReader(f):
-                va30[(r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")] = int(r["votos_apos_1730"])
+                k = (r["uf"], f"{r['municipio']},{r['zona']},{r['secao']}")
+                va30[k] = int(r["votos_apos_1730"])
+                for c in VCUTS:
+                    vcut[c][k] = int(r.get(f"votos_apos_{c}") or 0)
 
     def det_time(r, col, off):
         v = r.get(col) if r else None
@@ -126,6 +130,8 @@ def main():
     uni["va"] = [va30.get((u, k), 0) for u, k in zip(uni.uf, uni.key)]               # votes at/after 17:30
     # ... of which in the sections that closed before 17:30 (a vote after the confirmed closing cannot exist: ~0)
     uni["va0"] = [0 if reg else v for reg, v in zip(uni.registrar, uni.va)]
+    for c in VCUTS:
+        uni["vb" + c] = [vcut[c].get((u, k), 0) for u, k in zip(uni.uf, uni.key)]
 
     # --- municipalities --------------------------------------------------------------------
     xw = pd.read_csv(os.path.join(root, "data", "tse_ibge.csv"), dtype=str)
@@ -169,12 +175,12 @@ def main():
     # --- detail rows ---------------------------------------------------------------------------
     L = uni[uni.registrar].sort_values(["uf", "municipio", "zona", "secao"])
     dcols = ["mi", "zona", "secao", "enc", "sel", "ini", "ult", "vd", "va", "ap", "cp", "l", "f",
-             "o", "b", "n", "v", "alt", "sr"]          # sr = 1: no closing record in the log
+             "o", "b", "n", "v", "alt", "sr"] + ["vb" + c for c in VCUTS]     # sr = 1: no closing record in the log; vbHHMM = votes at/after HH:MM
     drows = [[mun_index[(r.uf, r.municipio)], int(r.zona), int(r.secao), nn(r.enc), nn(r.sel),
               nn(r.ini), nn(r.ult), int(r.vd), int(r.va), int(r.aptos), int(r.comparecimento),
               int(r.lula), int(r.flavio), int(r.outros), int(r.brancos), int(r.nulos),
               int(r.vencedor), 1 if (r.uf, r.key) in alt_keys else 0,
-              1 if r.enc is None or pd.isna(r.enc) else 0]
+              1 if r.enc is None or pd.isna(r.enc) else 0] + [int(getattr(r, "vb" + c)) for c in VCUTS]
              for r in L.itertuples()]
 
     # --- coverage / meta -------------------------------------------------------------------

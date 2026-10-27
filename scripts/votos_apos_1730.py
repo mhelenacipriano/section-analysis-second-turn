@@ -9,7 +9,8 @@ counted. Every other section has no vote at/after 17:30.
 
     python scripts/votos_apos_1730.py
 
-Writes data/votos_apos_1730.csv (uf, municipio, zona, secao, votos_apos_1730), which
+Writes data/votos_apos_1730.csv (uf, municipio, zona, secao, votos_apos_1730, ..._1745, 1800, 1830, 1850, 1900:
+votes at/after each Brasília time), which
 scripts/build_site_data.py reads.
 """
 import csv
@@ -28,6 +29,7 @@ import votos_apos_17h as v  # noqa: E402
 from clocks import UF_OFFSET, muni_offsets, secs  # noqa: E402
 
 CUT = 17 * 3600 + 30 * 60
+CUTS = [("1730", 17, 30), ("1745", 17, 45), ("1800", 18, 0), ("1830", 18, 30), ("1850", 18, 50), ("1900", 19, 0)]   # votes at/after each
 DAY = datetime.datetime(2026, 10, 25)
 
 
@@ -74,8 +76,8 @@ def main():
             name, blob, err = b.fetch_log("ele2026", "3221", uf, {"mun": mun, "zona": zona, "secao": secao}, None, {})
             if err:
                 return item, None, err
-            cutoff = DAY.replace(hour=17, minute=30) + datetime.timedelta(hours=o)   # 17:30 Brasília on this urna's clock
-            return item, v.analyse(blob, name, cutoff)[2], None
+            # each cut-off is Brasília time, shifted to this urna's own clock
+            return item, [v.analyse(blob, name, DAY.replace(hour=h, minute=m) + datetime.timedelta(hours=o))[2] for _, h, m in CUTS], None
         except Exception as e:                        # noqa: BLE001
             return item, None, str(e)
 
@@ -84,16 +86,16 @@ def main():
         for i, (item, late, err) in enumerate(ex.map(one, sorted(todo.items())), 1):
             if err:
                 failed.append((item[0], err))
-            elif late:
-                rows.append([*item[0], late])
+            elif late[0]:                                  # no vote at/after 17:30 means none after any later cut-off
+                rows.append([*item[0], *late])
             if i % 500 == 0:
                 print(f"  {i}/{len(todo)}")
     out = os.path.join(ROOT, "data", "votos_apos_1730.csv")
     with open(out, "w", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
-        w.writerow(["uf", "municipio", "zona", "secao", "votos_apos_1730"])
+        w.writerow(["uf", "municipio", "zona", "secao"] + [f"votos_apos_{k}" for k, _, _ in CUTS])
         w.writerows(sorted(rows))
-    print(f"{len(rows)} sections with votes at/after 17:30 ({sum(r[4] for r in rows)} votes); {len(failed)} without a log")
+    print(f"{len(rows)} sections with votes at/after 17:30 ({sum(r[4] for r in rows)} votes at/after 17:30); {len(failed)} without a log")
     for key, err in failed[:10]:
         print("  no log:", key, err[:90])
 
