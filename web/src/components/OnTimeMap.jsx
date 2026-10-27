@@ -31,7 +31,7 @@ export default function OnTimeMap({ data, go, themeKey }) {
             valueOf={(f) => byUf.get(f.properties.uf)?.pct ?? null} max={1}
             colorOf={(f, c) => { const r = byUf.get(f.properties.uf); return r ? c[r.winner] : c.none; }}
             labelOf={(f) => { const r = byUf.get(f.properties.uf); return r ? `${f.properties.uf}: ${fmtPct(r.pct, 2)} ${L('no horário', 'on time')} · ${L('venceu', 'won by')} ${winnerName(r.winner, L)}` : `${f.properties.uf}: ${L('sem dados', 'no data')}`; }}
-            tagOf={(f) => { const r = byUf.get(f.properties.uf); return r ? `<span><b>${f.properties.uf}</b><br>${fmtPct(r.pct, 1)}</span>` : ''; }}
+            tagOf={(f) => { const r = byUf.get(f.properties.uf); return r ? { a: f.properties.uf, b: fmtPct(r.pct, 1) } : null; }}
             onPick={(uf) => byUf.has(uf) && go('/mapa', { uf })}
           />
         ) : <p className="empty">{L('Carregando mapa…', 'Loading map…')}</p>}

@@ -3,7 +3,7 @@
   color-scheme: dark;
   --bg: #151515; --panel: #1f1f1f; --panel2: #2b2b2b; --soft: #1b1b1b; --fg: #f5f5f5; --fg2: #cfcfcf; --muted: #a3a3a3; --line: #343434;
   --lula: #ff5f52; --flavio: #6aa5ff; --neutro: #7a7a7a; --outros: #5a5a5a; --on-lula: #151515;
-  --fecha: #3cc4b0; --accent: #ff5f52; --red-solid: #e5392d; --red-solid-hover: #f04b3f;
+  --fecha: #4ade80; --accent: #ff5f52; --red-solid: #e5392d; --red-solid-hover: #f04b3f;
   --radius: 14px; --gap: clamp(18px, 3vw, 32px);
   --serif: Georgia, "Times New Roman", serif;
   --sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -12,7 +12,7 @@
   color-scheme: light;
   --bg: #ffffff; --panel: #ffffff; --panel2: #f1f1f1; --soft: #f6f6f6; --fg: #161616; --fg2: #3d3d3d; --muted: #5e5e5e; --line: #dedede;
   --lula: #cf2a1f; --flavio: #1f5fbf; --neutro: #8c8c8c; --outros: #bcbcbc; --on-lula: #ffffff;
-  --fecha: #0f766e; --accent: #cf2a1f; --red-solid: #cf2a1f; --red-solid-hover: #b01f15;
+  --fecha: #14733a; --accent: #cf2a1f; --red-solid: #cf2a1f; --red-solid-hover: #b01f15;
 }
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; -webkit-text-size-adjust: 100%; }
@@ -172,9 +172,13 @@ td.empty { text-align: center; white-space: normal; }
 @media (max-width: 760px) { .vr { grid-template-columns: 1fr 1fr; } .vr-b { grid-column: 1 / -1; } }
 
 /* ---------- State labels on the map and the on-time ranking ---------- */
-.uf-tag { display: flex; align-items: center; justify-content: center; text-align: center; background: rgba(0, 0, 0, .68); color: #fff; border-radius: 8px; font-size: 11px; line-height: 1.15; font-weight: 600; pointer-events: none; white-space: nowrap; }
-.uf-tag b { font-size: 12px; font-weight: 800; }
-.uf-tag.compact { font-size: 10px; border-radius: 6px; line-height: 1; } .uf-tag.compact b { font-size: 10px; margin-right: 3px; } .uf-tag.compact br { display: none; }
+/* state labels (see Labels in MapView.jsx): inside a state, or a callout beside the map */
+.uf-in, .uf-out { pointer-events: none; font-family: inherit; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.uf-in { display: flex; align-items: center; justify-content: center; text-align: center; line-height: 1.15; }
+.uf-in b { font-weight: 800; letter-spacing: .02em; }
+.uf-in.halo { color: var(--fg); text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg); }
+.uf-out { display: flex; align-items: center; color: var(--fg); line-height: 1; text-shadow: 0 0 3px var(--bg), 0 0 3px var(--bg), 0 0 3px var(--bg); }
+.uf-out.l { justify-content: flex-end; }
 .rank-bars { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
 .rank-bars li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: 10px; align-items: center; }
 .rb-uf { font-weight: 700; } .rb-n { color: var(--muted); font-size: .82rem; text-align: right; font-variant-numeric: tabular-nums; }

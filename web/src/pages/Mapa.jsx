@@ -9,9 +9,9 @@ import { fmtHM, fmtN, fmtPct } from '../format.js';
 import { byUnit, groups, leader } from '../stats.js';
 
 // View 1 colours by the share of each place's sections that closed at/after the chosen time, whoever won.
-// Six quantile classes (about the same number of places in each) so RJ/SP do not wash out everyone else;
+// Five quantile classes (about the same number of places in each) so RJ/SP do not wash out everyone else;
 // zero stays neutral and even the lightest class is clearly tinted.
-const CLASSES = 6;
+const CLASSES = 5;
 const T_MIN = 0.28;
 function classify(values) {
   const v = values.filter((x) => x > 0).sort((a, b) => a - b);
@@ -94,7 +94,7 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
     return `${name}: ${fmtN(u.atT)} ${L('de', 'of')} ${fmtN(u.n)} ${L('seções', 'sections')} (${fmtPct(u.atT / u.n, 2)}) · ${L('votos no 1º turno', '1st-round votes')}: Lula ${fmtN(s.vl)} (${fmtPct(s.l)}) × Flávio ${fmtN(s.vf)} (${fmtPct(s.fl)}) → ${W(s.winner)}`;
   };
   const tagOf = level === 'uf'
-    ? (feat) => { const u = unitOf(feat); return u && u.n && (u.atT || vista === 'pct') ? `<span><b>${feat.properties.uf}</b><br>${fmtPct(u.atT / u.n, 1)}</span>` : ''; }
+    ? (feat) => { const u = unitOf(feat); return u && u.n && (u.atT || vista === 'pct') ? { a: feat.properties.uf, b: fmtPct(u.atT / u.n, 1) } : null; }
     : undefined;
   const keyOf = (feat) => (level === 'uf' ? feat.properties.uf : feat.properties.id);
   const onPick = (key) => {
