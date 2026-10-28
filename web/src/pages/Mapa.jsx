@@ -43,7 +43,7 @@ export default function Mapa({ data, f, setF, query, go, themeKey }) {
   const level = f.uf ? 'mun' : 'uf';
   const cedo = !!f.cedo;                       // only the sections that closed before 17:30
   const T = fmtHM(f.lim);
-  const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
+  const when = cedo ? L('até as 17:30', 'until 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
   const whenShort = cedo ? '< 17:30' : `${T}+`;
   const W = (k) => winnerName(k, L);
   // only ever draw geometry that belongs to the current level: a stale one (the previous

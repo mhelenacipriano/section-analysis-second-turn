@@ -39,7 +39,7 @@ function ResumoInner({ data, f, setF, go }) {
   const W = winnerName(s.winner);
   const oneIn = s.pctVotes ? Math.round(1 / s.pctVotes) : null;
   const left = s.gap - s.va;
-  const when = cedo ? L('antes das 17:30', 'before 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
+  const when = cedo ? L('até as 17:30', 'until 17:30') : L(`às ${T} ou depois`, `at ${T} or later`);
 
   // every row is a share of the same totals: early + 17:30-or-later = all urnas; the cut-offs below are parts of "17:30 or later"
   const cuts = useMemo(() => CUTS.map((c) => ({ c, ...pesoTardio(data, c, f.uf).scope })), [data, f.uf]);
@@ -53,7 +53,7 @@ function ResumoInner({ data, f, setF, go }) {
 
   const columns = [
     { key: 'uf', label: L('UF', 'State'), get: (r) => r.uf },
-    { key: 'n', label: cedo ? L('Urnas fechadas antes das 17:30', 'Urnas closed before 17:30') : L('Urnas fechadas tarde', 'Urnas closed late'), num: true, get: (r) => r.n, render: (r) => `${fmtN(r.n)} (${fmtPct(r.pctSections, 2)})`, csv: (r) => r.n },
+    { key: 'n', label: cedo ? L('Urnas fechadas até as 17:30', 'Urnas closed until 17:30') : L('Urnas fechadas tarde', 'Urnas closed late'), num: true, get: (r) => r.n, render: (r) => `${fmtN(r.n)} (${fmtPct(r.pctSections, 2)})`, csv: (r) => r.n },
     { key: 'va', label: L('Votos depois das 17:30', 'Votes after 5:30 pm'), num: true, get: (r) => r.va, render: (r) => fmtN(r.va) },
     { key: 'pv', label: L('% dos votos do estado', '% of the state’s votes'), num: true, get: (r) => r.pctVotes, render: (r) => pct(r.pctVotes), csv: (r) => (r.pctVotes * 100).toFixed(4) },
     { key: 'w', label: L('Venceu o estado (2º turno)', 'Won the state (2nd round)'), get: (r) => winnerName(r.winner), render: (r) => <span className={`chip-venc ${r.winner}`}>{winnerName(r.winner)}</span> },
@@ -88,8 +88,8 @@ function ResumoInner({ data, f, setF, go }) {
             <span className="selo">{L('✓ Fecharam no horário normal', '✓ Closed at the normal time')}</span>
             <p className="pv-lead">
               {L(
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam no horário, antes das 17:30. Elas reuniram <strong>{fmtN(s.inGroup)} votos</strong>, quase todos os votos do 2º turno. {s.va ? <>Só <strong>{fmtN(s.va)}</strong> foram dados depois das 17:30.</> : <><strong>Nenhum voto</strong> foi dado depois das 17:30: essas urnas já tinham fechado.</>}</>,
-                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed on time, before 17:30. They held <strong>{fmtN(s.inGroup)} votes</strong>, almost all the votes of the 2nd round. {s.va ? <>Only <strong>{fmtN(s.va)}</strong> were cast after 5:30 pm.</> : <><strong>No vote</strong> was cast after 5:30 pm: these urnas had already closed.</>}</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> fecharam no horário, até as 17:30. Elas reuniram <strong>{fmtN(s.inGroup)} votos</strong>, quase todos os votos do 2º turno. {s.va ? <>Só <strong>{fmtN(s.va)}</strong> foram dados depois das 17:30.</> : <><strong>Nenhum voto</strong> foi dado depois das 17:30: essas urnas já tinham fechado.</>}</>,
+                <><strong>{whereLead}</strong>, <strong>{fmtN(s.n)} urnas</strong> closed on time, until 17:30. They held <strong>{fmtN(s.inGroup)} votes</strong>, almost all the votes of the 2nd round. {s.va ? <>Only <strong>{fmtN(s.va)}</strong> were cast after 5:30 pm.</> : <><strong>No vote</strong> was cast after 5:30 pm: these urnas had already closed.</>}</>,
               )}
             </p>
             <div className="pv-nums">
@@ -102,7 +102,7 @@ function ResumoInner({ data, f, setF, go }) {
             <div className="pcards">
               <Card n="1" kicker={L('Das urnas', 'Of the urnas')} big={fmtPct(s.pctSections, 2)}
                 bigSub={L(`${fmtN(s.n)} de ${fmtN(s.sections)} urnas`, `${fmtN(s.n)} of ${fmtN(s.sections)} urnas`)} meter={<Meter share={s.pctSections} />}>
-                {L('Fecharam no horário normal, antes das 17:30.', 'Closed at the normal time, before 17:30.')}
+                {L('Fecharam no horário normal, até as 17:30.', 'Closed at the normal time, until 17:30.')}
               </Card>
               <Card n="2" kicker={L('Dos votos do 2º turno', 'Of the 2nd-round votes')} big={fmtPct(s.pctInGroup, 2)}
                 bigSub={L(`${fmtN(s.inGroup)} de ${fmtN(s.votes)} votos`, `${fmtN(s.inGroup)} of ${fmtN(s.votes)} votes`)} meter={<Meter share={s.pctInGroup} />}>
@@ -149,8 +149,8 @@ function ResumoInner({ data, f, setF, go }) {
 
       <section className="story" aria-labelledby="cortes">
         <h2 id="cortes">{L('Todas as urnas, por horário de encerramento', 'All urnas, by closing time')}</h2>
-        <p className="story-intro">{L(`As urnas fechadas antes das 17:30 mais as fechadas às 17:30 ou depois somam o total (${where}). Clique numa linha para ver só aquele grupo.`,
-          `Urnas closed before 17:30 plus those closed at 17:30 or later add up to the total (${where}). Click a row to see only that group.`)}</p>
+        <p className="story-intro">{L(`As urnas fechadas até as 17:30 mais as fechadas às 17:30 ou depois somam o total (${where}). Clique numa linha para ver só aquele grupo.`,
+          `Urnas closed until 17:30 plus those closed at 17:30 or later add up to the total (${where}). Click a row to see only that group.`)}</p>
         <div className="tabela-scroll">
           <table>
             <thead><tr>
@@ -158,7 +158,7 @@ function ResumoInner({ data, f, setF, go }) {
               <th className="num">{L('% de todos os votos', '% of all votes')}</th></tr></thead>
             <tbody>
               {line('all', L('Todas as urnas (total)', 'All urnas (total)'), all, untilAll, { strong: true })}
-              {line('early', L('Antes das 17:30', 'Before 17:30'), early, untilEarly, { sel: cedo, onClick: () => setF({ cedo: '1' }) })}
+              {line('early', L('Até as 17:30', 'Until 17:30'), early, untilEarly, { sel: cedo, onClick: () => setF({ cedo: '1' }) })}
               {line('rest', L('17:30 ou depois', '17:30 or later'), rest, untilRest, { sel: false, onClick: () => setF({ lim: EARLY }) })}
               {cuts.map((r) => line(`c${r.c}`, <>{L('a partir das', 'from')} {fmtHM(r.c)}</>, r, r.until, { sub: true, sel: !cedo && r.c === f.lim, onClick: () => setF({ lim: r.c }) }))}
             </tbody>

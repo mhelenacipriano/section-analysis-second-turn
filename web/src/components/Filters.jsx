@@ -53,11 +53,11 @@ export function Filters({ data, f, setF, venc = false, limiar = true, basico = f
       {limiar && (
         <div className="limiar">
           <label htmlFor="lim">{cedo && f.cedo
-            ? <>{L('Urnas encerradas', 'Urnas closed')} <strong>{L('antes das 17:30', 'before 17:30')}</strong> <small>({L('Brasília', 'Brasília time')})</small></>
+            ? <>{L('Urnas encerradas', 'Urnas closed')} <strong>{L('até as 17:30', 'until 17:30')}</strong> <small>({L('Brasília', 'Brasília time')})</small></>
             : <>{L('Urna encerrada às', 'Urna closed at')} <strong>{fmtHM(f.lim)}</strong> {L('ou depois', 'or later')} <small>({L('Brasília', 'Brasília time')})</small></>}</label>
           <input id="lim" type="range" min={LIM_MIN} max={LIM_MAX} step={5} value={f.lim} disabled={cedo && !!f.cedo} onChange={(e) => setF({ lim: Number(e.target.value) })} />
           <div className="chips">
-            {cedo && <button type="button" className={`chip ${f.cedo ? 'on' : ''}`} aria-pressed={!!f.cedo} onClick={() => setF({ cedo: f.cedo ? '' : '1' })}>{L('Antes das 17:30', 'Before 17:30')}</button>}
+            {cedo && <button type="button" className={`chip ${f.cedo ? 'on' : ''}`} aria-pressed={!!f.cedo} onClick={() => setF({ cedo: f.cedo ? '' : '1' })}>{L('Até as 17:30', 'Until 17:30')}</button>}
             {PRESETS.map((p) => (
               <button key={p} type="button" className={`chip ${!f.cedo && f.lim === p ? 'on' : ''}`} onClick={() => setF({ lim: p })}>{fmtHM(p)}</button>
             ))}
